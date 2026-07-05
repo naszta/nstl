@@ -1,0 +1,9 @@
+build
+out
+.git
+.github
+.vscode
+.clang-format
+.dockerignore
+Dockerfile
+CMakeUserPresets.json

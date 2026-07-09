@@ -1,10 +1,17 @@
 PROJECT(nstllib LANGUAGES CXX)
 
 SET(nstllibHdrs
-  range_print.hpp
-  ro_buffer.hpp
-  scope_exit.hpp
-  unlock_guard.hpp
+  nstl/range_print.hpp
+  nstl/ro_buffer.hpp
+  nstl/scope_exit.hpp
+  nstl/unlock_guard.hpp
 )
 
-ADD_LIBRARY(nstllib INTERFACE ${nstllibHdrs})
+ADD_LIBRARY(nstllib INTERFACE)
+
+# ref: https://cmake.org/cmake/help/latest/manual/cmake-buildsystem.7.html#interface-libraries
+target_sources(nstllib PUBLIC
+  FILE_SET HEADERS # useless line
+  BASE_DIRS nstl # same as target_include_directories
+  FILES ${nstllibHdrs} # useless line
+)

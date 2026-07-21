@@ -4,6 +4,7 @@ SET(nstllibHdrs
   nstl/c_timezone.hpp
   nstl/range_print.hpp
   nstl/ro_buffer.hpp
+  nstl/safe_basename.hpp
   nstl/scope_exit.hpp
   nstl/unlock_guard.hpp
 )

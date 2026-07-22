@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __NSTL_SCOPE_EXIT
+#define __NSTL_SCOPE_EXIT 1
 
 #include <functional>
 
@@ -39,3 +40,5 @@ namespace nstl
         return ::nstl::scope_exit(std::forward<Func>(func_));
     }
 }
+
+#endif

@@ -1,5 +1,5 @@
-#ifndef __C_TIMEZONE
-#define __C_TIMEZONE 1
+#ifndef _NSTL_C_TIMEZONE
+#define _NSTL_C_TIMEZONE 1
 
 #include <chrono>
 #include <string>

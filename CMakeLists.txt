@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.28)
 PROJECT(nstlroot)
 
 SET(nstlroot_MAJOR_VERSION 0)
-SET(nstlroot_MINOR_VERSION 1)
+SET(nstlroot_MINOR_VERSION 2)
 SET(nstlroot_BUILD_VERSION 0)
 
 IF(EXISTS ${nstlroot_SOURCE_DIR}/.git)

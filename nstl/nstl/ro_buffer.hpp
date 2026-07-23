@@ -21,9 +21,9 @@ public:
     using view_type = std::basic_string_view<CharT, TraitsT>;
     using base_type = std::basic_streambuf<CharT, TraitsT>;
 
-    basic_ro_buffer(const char* ptr, size_t size)
+    basic_ro_buffer(const CharT* ptr, size_t size)
     {
-        char* begin = const_cast<char*>(ptr); // it's safe because pbackfail made to be dead
+        CharT* begin = const_cast<CharT*>(ptr); // it's safe because pbackfail made to be dead
         this->setg(begin, begin, begin + size);
         this->setp(begin, begin);
     }
@@ -46,7 +46,7 @@ public:
 
     view_type content() const
     {
-        return view_type{this->eback(), static_cast<size_t>(this->egptr(), this->eback())};
+        return view_type{this->eback(), static_cast<size_t>(this->egptr() - this->eback())};
     }
 
     void swap(basic_ro_buffer& right_) noexcept

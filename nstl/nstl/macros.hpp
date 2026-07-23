@@ -5,7 +5,7 @@
 
 #include <sstream>
 
-#define THROW_EXCEPTION(error, detail)                                                      \
+#define NSTL_THROW_EXCEPTION(error, detail)                                                 \
     do                                                                                      \
     {                                                                                       \
         std::ostringstream _oss__;                                                          \
@@ -13,10 +13,10 @@
         throw error{_oss__.str()};                                                          \
     } while (false)
 
-#define THROW_EXCEPTION_IF(cond, error, detail) \
-    if (cond) [[unlikely]]                      \
-    {                                           \
-        THROW_EXCEPTION(error, detail);         \
+#define NSTL_THROW_EXCEPTION_IF(cond, error, detail)    \
+    if (cond) [[unlikely]]                              \
+    {                                                   \
+        NSTL_THROW_EXCEPTION(error, detail);            \
     }
 
 #endif

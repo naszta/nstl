@@ -42,7 +42,7 @@ docker build -t nstl .
 | [`nstl/scope_exit.hpp`](nstl/nstl/scope_exit.hpp) | `nstl::scope_exit` / `on_scope_exit` — RAII guard that runs a callable when the scope exits. |
 | [`nstl/unlock_guard.hpp`](nstl/nstl/unlock_guard.hpp) | `nstl::unlock_guard` — the inverse of `std::lock_guard`: unlocks one or more mutexes for the current scope and re-locks them on destruction. |
 | [`nstl/safe_basename.hpp`](nstl/nstl/safe_basename.hpp) | `nstl::safe_basename` — returns the filename portion of a path, platform-aware (`\\` on Windows, `/` elsewhere), without allocating. |
-| [`nstl/macros.hpp`](nstl/nstl/macros.hpp) | `THROW_EXCEPTION` / `THROW_EXCEPTION_IF` — throw an exception with a message prefixed by file (via `safe_basename`) and line number. |
+| [`nstl/macros.hpp`](nstl/nstl/macros.hpp) | `NSTL_THROW_EXCEPTION` / `NSTL_THROW_EXCEPTION_IF` — throw an exception with a message prefixed by file (via `safe_basename`) and line number. |
 
 ## Usage
 

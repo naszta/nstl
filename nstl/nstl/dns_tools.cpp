@@ -25,7 +25,7 @@ namespace
 		W32Init()
 		{
 			WSADATA wsaData;
-			THROW_EXCEPTION_IF(::WSAStartup(MAKEWORD(2, 2), &wsaData) != 0, std::runtime_error, "TCP/IP init failed");
+			NSTL_THROW_EXCEPTION_IF(::WSAStartup(MAKEWORD(2, 2), &wsaData) != 0, std::runtime_error, "TCP/IP init failed");
 		}
 		~W32Init()
 		{
@@ -50,14 +50,14 @@ std::string hostname()
 	constexpr int max_host_size = 256;
 	net_init();
 	std::array<char, max_host_size> buffer;
-	THROW_EXCEPTION_IF(::gethostname(buffer.data(), max_host_size) != 0, std::invalid_argument,  "hostname cannot be resolved");
+	NSTL_THROW_EXCEPTION_IF(::gethostname(buffer.data(), max_host_size) != 0, std::invalid_argument,  "hostname cannot be resolved");
 	return std::string{buffer.data()};
 }
 
 std::optional<std::string> cannonical_name(const char* name_)
 {
 	net_init();
-	THROW_EXCEPTION_IF(!name_, std::invalid_argument, "name_ cannot be nullptr");
+	NSTL_THROW_EXCEPTION_IF(!name_, std::invalid_argument, "name_ cannot be nullptr");
 	struct addrinfo hints;
 	std::memset(&hints, 0, sizeof(addrinfo));
 	hints.ai_family = AF_UNSPEC;
@@ -69,7 +69,7 @@ std::optional<std::string> cannonical_name(const char* name_)
 		}
 	});
 
-	THROW_EXCEPTION_IF(::getaddrinfo(name_, nullptr, &hints, &result) != 0, std::runtime_error, name_ << " cannot be resolved");
+	NSTL_THROW_EXCEPTION_IF(::getaddrinfo(name_, nullptr, &hints, &result) != 0, std::runtime_error, name_ << " cannot be resolved");
 
 	std::optional<std::string> retval;
 

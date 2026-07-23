@@ -26,14 +26,14 @@ class DnsClient
 
     bool _process_item(const char* name_, const int ns_type_, const std::function<void (ns_msg& message, int count)>& func_)
     {
-        THROW_EXCEPTION_IF(!name_, std::invalid_argument, "name_ cannot be nullptr");
+        NSTL_THROW_EXCEPTION_IF(!name_, std::invalid_argument, "name_ cannot be nullptr");
         const auto length = res_nquery(&_state, name_, ns_c_in, ns_type_, _response.data(), _response.size());
         if (length <= 0) {
             return false;
         }
-        THROW_EXCEPTION_IF(_response.size() < static_cast<size_t>(length), std::runtime_error, length << " is greater than " << _response.size());
+        NSTL_THROW_EXCEPTION_IF(_response.size() < static_cast<size_t>(length), std::runtime_error, length << " is greater than " << _response.size());
         ns_msg message;
-        THROW_EXCEPTION_IF(ns_initparse(_response.data(), length, &message) < 0, std::runtime_error, "ns_initparse failed");
+        NSTL_THROW_EXCEPTION_IF(ns_initparse(_response.data(), length, &message) < 0, std::runtime_error, "ns_initparse failed");
 
         const int count = ns_msg_count(message, ns_s_an);
 
@@ -50,7 +50,7 @@ public:
 
     DnsClient()
     {
-        THROW_EXCEPTION_IF(res_ninit(&_state) < 0, std::runtime_error, "Resolver initialize failed");
+        NSTL_THROW_EXCEPTION_IF(res_ninit(&_state) < 0, std::runtime_error, "Resolver initialize failed");
     }
 
     ~DnsClient()
@@ -71,7 +71,7 @@ public:
 
             for (int idx = 0; idx < count; ++idx) {
                 ns_rr raw_record;
-                THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0, std::runtime_error, "Failed to parse DNS message");
+                NSTL_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0, std::runtime_error, "Failed to parse DNS message");
                 // message is not MX
                 if (ns_rr_class(raw_record) != ns_c_in || ns_rr_type(raw_record) != tgt_type) {
                     continue;
@@ -92,7 +92,7 @@ public:
                     item_name.data(),
                     item_name.size()
                 );
-                THROW_EXCEPTION_IF(expanded_length < 0, std::runtime_error, "invalid response");
+                NSTL_THROW_EXCEPTION_IF(expanded_length < 0, std::runtime_error, "invalid response");
 
                 mx_srv item{.address = std::string{item_name.data(), strnlen(item_name.data(), static_cast<size_t>(expanded_length))}, .priority = priority};
                 retval->push_back(std::move(item));
@@ -111,7 +111,7 @@ public:
 
             for (int idx = 0; idx < count; ++idx) {
                 ns_rr raw_record;
-                THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0, std::runtime_error, "Failed to parse DNS message");
+                NSTL_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0, std::runtime_error, "Failed to parse DNS message");
                 // message is not TXT
                 if (ns_rr_class(raw_record) != ns_c_in || ns_rr_type(raw_record) != tgt_type) {
                     continue;
@@ -127,7 +127,7 @@ public:
                     const std::uint8_t text_len = *p;
                     ++p;
                     next_p = p + text_len;
-                    THROW_EXCEPTION_IF(end < next_p, std::runtime_error, "Invalid TXT record");
+                    NSTL_THROW_EXCEPTION_IF(end < next_p, std::runtime_error, "Invalid TXT record");
                     item.append(reinterpret_cast<const char*>(p), text_len);
                 }
                 retval->push_back(std::move(item));
@@ -146,7 +146,7 @@ public:
 
             for (int idx = 0; idx < count; ++idx) {
                 ns_rr raw_record;
-                THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0, std::runtime_error, "Failed to parse DNS message");
+                NSTL_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0, std::runtime_error, "Failed to parse DNS message");
                 // message is not TXT
                 if (ns_rr_class(raw_record) != ns_c_in || ns_rr_type(raw_record) != tgt_type) {
                     continue;
@@ -161,7 +161,7 @@ public:
                     item_name.data(),
                     item_name.size()
                 );
-                THROW_EXCEPTION_IF(expanded_length < 0, std::runtime_error, "invalid response");
+                NSTL_THROW_EXCEPTION_IF(expanded_length < 0, std::runtime_error, "invalid response");
                 std::string cname{item_name.data(), strnlen(item_name.data(), static_cast<size_t>(expanded_length))};
                 retval->emplace_back(std::move(cname));
             }

@@ -23,8 +23,12 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(gtest_version "v1.17.0" CACHE STRING "GTest version")
+# tbb
+find_package(TBB REQUIRED)
+set(TBB_TEST OFF CACHE BOOL "" FORCE)
 
+# gtest
+set(gtest_version "v1.17.0" CACHE STRING "GTest version")
 include(FetchContent)
 FetchContent_Declare(
   googletest

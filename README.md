@@ -9,6 +9,7 @@ without pulling in a heavyweight dependency.
 
 - C++20 compiler (GCC, Clang, or MSVC)
 - CMake 3.28+
+- [oneTBB](https://github.com/uxlfoundation/oneTBB) (found via `find_package(TBB REQUIRED)`) — used for the async logging queue
 - Windows: links against `Ws2_32.lib` and `Dnsapi.lib`
 - Linux/macOS: links against `resolv`
 
@@ -43,6 +44,7 @@ docker build -t nstl .
 | [`nstl/unlock_guard.hpp`](nstl/nstl/unlock_guard.hpp) | `nstl::unlock_guard` — the inverse of `std::lock_guard`: unlocks one or more mutexes for the current scope and re-locks them on destruction. |
 | [`nstl/safe_basename.hpp`](nstl/nstl/safe_basename.hpp) | `nstl::safe_basename` — returns the filename portion of a path, platform-aware (`\\` on Windows, `/` elsewhere), without allocating. |
 | [`nstl/macros.hpp`](nstl/nstl/macros.hpp) | `NSTL_THROW_EXCEPTION` / `NSTL_THROW_EXCEPTION_IF` — throw an exception with a message prefixed by file (via `safe_basename`) and line number. |
+| [`nstl/logging.hpp`](nstl/nstl/logging.hpp) | `nstl::log::Logger` and the `NSTL_DEBUG` / `NSTL_INFO` / `NSTL_WARNING` / `NSTL_ERROR` macros — leveled, timestamped logging to a file, `ostream`, or a custom sink function, with a timezone-aware timestamp via `LogTimeZone`. Log lines are handed off to a background thread through a TBB concurrent queue, so callers don't block on I/O. |
 
 ## Usage
 
@@ -60,6 +62,17 @@ Then include the headers you need, e.g.:
 #include <nstl/scope_exit.hpp>
 
 auto guard = nstl::on_scope_exit([] { cleanup(); });
+```
+
+Logging:
+
+```cpp
+#include <nstl/logging.hpp>
+
+nstl::log::Logger logger{ std::filesystem::path{"app.log"}, nstl::log::LogLevel::Info };
+
+NSTL_INFO("Started with " << argc << " arguments");
+NSTL_ERROR("Failed to open " << path);
 ```
 
 ## License

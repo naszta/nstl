@@ -3,6 +3,7 @@ PROJECT(nstllib LANGUAGES CXX)
 SET(nstllibHdrs
   nstl/c_timezone.hpp
   nstl/dns_tools.hpp
+  nstl/logging.hpp
   nstl/macros.hpp
   nstl/range_print.hpp
   nstl/ro_buffer.hpp
@@ -14,6 +15,7 @@ SET(nstllibHdrs
 SET(nstllibSrcs
   nstl/c_timezone.cpp
   nstl/dns_tools.cpp
+  nstl/logging.cpp
 )
 
 if(WIN32)
@@ -28,9 +30,9 @@ target_compile_features(nstllib PUBLIC cxx_std_20)
 target_include_directories(nstllib PUBLIC ${nstllib_SOURCE_DIR})
 
 if (WIN32)
-  target_link_libraries(nstllib Ws2_32.lib Dnsapi.lib)
+  target_link_libraries(nstllib TBB::tbb Ws2_32.lib Dnsapi.lib)
 else()
-  target_link_libraries(nstllib resolv)
+  target_link_libraries(nstllib TBB::tbb resolv)
 endif()
 
 set_target_properties(nstllib PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)

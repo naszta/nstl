@@ -3,6 +3,7 @@ PROJECT(nstllib LANGUAGES CXX)
 SET(nstllibHdrs
   nstl/c_timezone.hpp
   nstl/dns_tools.hpp
+  nstl/exception.hpp
   nstl/logging.hpp
   nstl/macros.hpp
   nstl/range_print.hpp
@@ -16,6 +17,7 @@ SET(nstllibHdrs
 SET(nstllibSrcs
   nstl/c_timezone.cpp
   nstl/dns_tools.cpp
+  nstl/exception.cpp
   nstl/logging.cpp
   nstl/temp_dir.cpp
 )

@@ -1,5 +1,5 @@
 #include "logging.hpp"
-#include "macros.hpp"
+#include "exception.hpp"
 
 #include <cstdlib>
 
@@ -28,12 +28,12 @@ LogLevel::LogEnum LogLevel::parseLevel(const std::string_view view_)
     if (itr != log_levels.cend()) [[likely]] {
         return static_cast<LogEnum>(std::distance(log_levels.cbegin(), itr));
     }
-    NSTL_THROW_EXCEPTION(std::invalid_argument, view_ << " level is not known");
+    NSTL2_THROW_EXCEPTION(view_ << " level is not known");
 }
 
 std::string_view LogLevel::name(const LogEnum level_)
 {
-    NSTL_THROW_EXCEPTION_IF(level_ < 0 || log_levels.size() <= static_cast<std::uint32_t>(level_), std::invalid_argument, "Invalid level");
+    NSTL2_THROW_EXCEPTION_IF(level_ < 0 || log_levels.size() <= static_cast<std::uint32_t>(level_), "Invalid level");
     return log_levels[static_cast<LogInt>(level_)];
 }
 
@@ -97,7 +97,7 @@ public:
     {
         try
         {
-            NSTL_THROW_EXCEPTION_IF(!_ofs.good(), std::runtime_error, logfile_ << " cannot be opened for write");
+            NSTL2_THROW_EXCEPTION_IF(!_ofs.good(), logfile_ << " cannot be opened for write");
         }
         catch (const std::exception&)
         {

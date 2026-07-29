@@ -1,6 +1,6 @@
 #include "temp_dir.hpp"
+#include "exception.hpp"
 #include "logging.hpp"
-#include "macros.hpp"
 
 #include <random>
 
@@ -34,7 +34,7 @@ fs::path random_name(const size_t len, const std::optional<unsigned int>& seed)
 {
     thread_local std::default_random_engine engine{ get_seed(seed) };
 
-    NSTL_THROW_EXCEPTION_IF(len == 0, std::invalid_argument, "0 name length doesn't make sense");
+    NSTL2_THROW_EXCEPTION_IF(len == 0, "0 name length doesn't make sense");
 
     std::uniform_int_distribution<int> dist{ 'a', 'z' };
 
@@ -67,7 +67,7 @@ temp_dir::temp_dir(const std::filesystem::path& parent_, const std::filesystem::
     : _target{ parent_ / name_ }
     , _owned{ fs::create_directories(_target) }
 {
-    NSTL_THROW_EXCEPTION_IF(!_owned, std::runtime_error, _target << " cannot be created");
+    NSTL2_THROW_EXCEPTION_IF(!_owned, _target << " cannot be created");
     NSTL_DEBUG(_target << " created");
 }
 

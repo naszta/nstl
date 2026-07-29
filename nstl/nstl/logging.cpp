@@ -1,5 +1,5 @@
-#include "nstl/logging.hpp"
-#include "nstl/macros.hpp"
+#include "logging.hpp"
+#include "macros.hpp"
 
 #include <cstdlib>
 

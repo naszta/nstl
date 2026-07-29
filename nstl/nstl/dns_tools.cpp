@@ -50,6 +50,7 @@ std::string hostname()
 	constexpr int max_host_size = 256;
 	net_init();
 	std::array<char, max_host_size> buffer;
+	std::memset(buffer.data(), 0, buffer.size());
 	NSTL2_THROW_EXCEPTION_IF(::gethostname(buffer.data(), max_host_size) != 0, "hostname cannot be resolved");
 	return std::string{buffer.data()};
 }

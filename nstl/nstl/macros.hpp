@@ -1,5 +1,5 @@
-#ifndef __NSTL_MACROS
-#define __NSTL_MACROS 1
+#ifndef _NSTL_MACROS
+#define _NSTL_MACROS 1
 
 #include <nstl/safe_basename.hpp>
 

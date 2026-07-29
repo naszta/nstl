@@ -7,6 +7,7 @@
 #include <array>
 #include <atomic>
 #include <fstream>
+#include <limits>
 #include <iostream>
 
 #include <oneapi/tbb/concurrent_queue.h>
@@ -71,6 +72,7 @@ class LoggerImpl : public std::enable_shared_from_this<LoggerImpl>
     tbb::concurrent_bounded_queue<std::optional<std::string>> _queue;
     std::atomic_bool _running{true};
     std::thread _runner;
+    std::atomic_ptrdiff_t _throttle_size{std::numeric_limits<std::ptrdiff_t>::max()};
 
     void worker()
     {
@@ -118,6 +120,10 @@ public:
 
     void push(std::string&& line_)
     {
+        if (_throttle_size.load(std::memory_order::relaxed) < _queue.size()) [[unlikely]]
+        {
+            return;
+        }
         _queue.emplace(std::move(line_));
     }
 
@@ -133,6 +139,11 @@ public:
             _queue.emplace(std::nullopt);
             _runner.join();
         }
+    }
+
+    void throttleSize(const std::ptrdiff_t size_)
+    {
+        _throttle_size.store(size_);
     }
 };
 
@@ -165,6 +176,17 @@ Logger::~Logger() = default;
 size_t Logger::size() const
 {
     return _log ? _log->size() : 0;
+}
+
+bool Logger::throttleSize(const std::ptrdiff_t size_)
+{
+    NSTL2_THROW_EXCEPTION_IF(size_ < 0, "negative log throttle size (" << size_ << ") doesn't make any sense");
+    if (_log) [[likely]]
+    {
+        _log->throttleSize(size_);
+        return true;
+    }
+    return false;
 }
 
 void Logger::reset()

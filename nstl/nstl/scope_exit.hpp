@@ -1,5 +1,5 @@
-#ifndef __NSTL_SCOPE_EXIT
-#define __NSTL_SCOPE_EXIT 1
+#ifndef _NSTL_SCOPE_EXIT
+#define _NSTL_SCOPE_EXIT 1
 
 #include <functional>
 

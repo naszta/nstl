@@ -1,5 +1,5 @@
-#ifndef __NSTL_RO_BUFFER
-#define __NSTL_RO_BUFFER 1
+#ifndef _NSTL_RO_BUFFER
+#define _NSTL_RO_BUFFER 1
 
 #include <streambuf>
 #include <string_view>

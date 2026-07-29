@@ -1,5 +1,5 @@
-#ifndef __NSTL_EXCEPTION
-#define __NSTL_EXCEPTION 1
+#ifndef _NSTL_EXCEPTION
+#define _NSTL_EXCEPTION 1
 
 #include <nstl/safe_basename.hpp>
 

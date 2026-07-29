@@ -62,6 +62,7 @@ namespace nstl::log
 		Logger(const Logger&) = delete;
 		Logger& operator= (const Logger&) = delete;
 
+        bool throttleSize(std::ptrdiff_t size_);
         size_t size() const;
         void reset();
 	};

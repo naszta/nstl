@@ -1,5 +1,5 @@
-#ifndef __NSTL_UNLOCK_GUARD
-#define __NSTL_UNLOCK_GUARD 1
+#ifndef _NSTL_UNLOCK_GUARD
+#define _NSTL_UNLOCK_GUARD 1
 
 #include <mutex>
 #include <tuple>
@@ -22,7 +22,7 @@ public:
         : _locks{locks_...}
     {}
 
-    ~unlock_guard() noexcept
+    ~unlock_guard()
     {
         std::apply([](_Mutexes&... locks_) { std::lock(locks_...); }, _locks);
     }
@@ -46,7 +46,7 @@ public:
         : _lock{lock_}
     {}
 
-    ~unlock_guard() noexcept
+    ~unlock_guard()
     {
         _lock.lock();
     }
@@ -59,6 +59,7 @@ class unlock_guard<> {
 public:
     explicit unlock_guard() = default;
     explicit unlock_guard(std::defer_lock_t) noexcept {}
+    ~unlock_guard() = default;
 
     unlock_guard(const unlock_guard&)            = delete;
     unlock_guard& operator=(const unlock_guard&) = delete;

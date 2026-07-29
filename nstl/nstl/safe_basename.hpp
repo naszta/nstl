@@ -1,5 +1,5 @@
-#ifndef __NSTL_SAFE_BASENAME
-#define __NSTL_SAFE_BASENAME 1
+#ifndef _NSTL_SAFE_BASENAME
+#define _NSTL_SAFE_BASENAME 1
 
 #include <cstring>
 

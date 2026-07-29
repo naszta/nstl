@@ -1,7 +1,8 @@
-#ifndef __NSTL_RANGE_PRINT
-#define __NSTL_RANGE_PRINT 1
+#ifndef _NSTL_RANGE_PRINT
+#define _NSTL_RANGE_PRINT 1
 
 #include <ostream>
+#include <type_traits>
 
 namespace nstl
 {
@@ -77,7 +78,11 @@ namespace nstl
 	}
 
 	template <class RangeType, class DelimType>
-	auto range_print(const RangeType& range_, DelimType delim_) {
+	auto range_print(RangeType&& range_, DelimType delim_) {
+		static_assert(std::is_lvalue_reference_v<RangeType>,
+			"range_print stores iterators into range_; passing a temporary would leave the "
+			"returned object with dangling iterators once this expression ends. Bind the "
+			"range to a named variable first.");
 		return ::nstl::range_print_iter(range_.begin(), range_.end(), std::forward<DelimType>(delim_));
 	}
 
@@ -87,7 +92,11 @@ namespace nstl
 	}
 
 	template <class RangeType, class DelimType, class EqDelimType>
-	auto range_map_print(const RangeType& range_, DelimType delim_, EqDelimType eq_delim_) {
+	auto range_map_print(RangeType&& range_, DelimType delim_, EqDelimType eq_delim_) {
+		static_assert(std::is_lvalue_reference_v<RangeType>,
+			"range_map_print stores iterators into range_; passing a temporary would leave the "
+			"returned object with dangling iterators once this expression ends. Bind the "
+			"range to a named variable first.");
 		return ::nstl::range_map_print_iter(range_.begin(), range_.end(), std::forward<DelimType>(delim_), std::forward<EqDelimType>(eq_delim_));
 	}
 }

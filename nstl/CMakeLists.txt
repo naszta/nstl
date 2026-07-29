@@ -9,6 +9,7 @@ SET(nstllibHdrs
   nstl/ro_buffer.hpp
   nstl/safe_basename.hpp
   nstl/scope_exit.hpp
+  nstl/temp_dir.hpp
   nstl/unlock_guard.hpp
 )
 
@@ -16,6 +17,7 @@ SET(nstllibSrcs
   nstl/c_timezone.cpp
   nstl/dns_tools.cpp
   nstl/logging.cpp
+  nstl/temp_dir.cpp
 )
 
 if(WIN32)

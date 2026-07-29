@@ -1,6 +1,6 @@
-#include "nstl/dns_tools.hpp"
-#include "nstl/macros.hpp"
-#include "nstl/scope_exit.hpp"
+#include "dns_tools.hpp"
+#include "macros.hpp"
+#include "scope_exit.hpp"
 
 #ifdef _WIN32
 #include <ws2tcpip.h>

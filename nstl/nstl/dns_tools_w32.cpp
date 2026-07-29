@@ -1,5 +1,5 @@
 #include "dns_tools.hpp"
-#include "macros.hpp"
+#include "exception.hpp"
 #include "scope_exit.hpp"
 
 #include <Windows.h>
@@ -11,7 +11,7 @@ namespace nstl::net
 {
 std::optional<std::vector<mx_srv>> mx_name(const char* name_)
 {
-	NSTL_THROW_EXCEPTION_IF(!name_, std::invalid_argument, "name_ cannot be nullptr");
+	NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
 	DNS_RECORD* results = nullptr;
 	const auto cleanup = on_scope_exit([&results]() {
 		if (results) {
@@ -45,7 +45,7 @@ std::optional<std::vector<mx_srv>> mx_name(const char* name_)
 
 std::optional<std::vector<std::string>> txt_name(const char* name_)
 {
-	NSTL_THROW_EXCEPTION_IF(!name_, std::invalid_argument, "name_ cannot be nullptr");
+	NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
 	DNS_RECORD* results = nullptr;
 	const auto cleanup = on_scope_exit([&results]() {
 		if (results) {
@@ -84,7 +84,7 @@ std::optional<std::vector<std::string>> txt_name(const char* name_)
 
 std::optional<std::vector<std::string>> c_name(const char* name_)
 {
-	NSTL_THROW_EXCEPTION_IF(!name_, std::invalid_argument, "name_ cannot be nullptr");
+	NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
 	DNS_RECORD* results = nullptr;
 	const auto cleanup = on_scope_exit([&results]() {
 		if (results) {

@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN --mount=type=cache,sharing=locked,target=/var/cache/apt \
     apt-get update && \
-    apt-get install -y build-essential git cmake gcc-14 g++-14 ccache ninja-build libtbb-dev && \
+    apt-get install -y build-essential git cmake gcc-14 g++-14 ccache ninja-build libtbb-dev libgtest-dev googletest && \
     rm -rf /var/lib/apt/lists/*
 
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 && \

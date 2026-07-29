@@ -28,16 +28,7 @@ find_package(TBB REQUIRED)
 set(TBB_TEST OFF CACHE BOOL "" FORCE)
 
 # gtest
-set(gtest_version "v1.17.0" CACHE STRING "GTest version")
-include(FetchContent)
-FetchContent_Declare(
-  googletest
-  # Specify the commit you depend on and update it regularly.
-  URL https://github.com/google/googletest/archive/refs/tags/${gtest_version}.zip
-)
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+find_package(GTest REQUIRED)
 
 if (MSVC)
   add_compile_options(/W4 /WX /Zc:__cplusplus)

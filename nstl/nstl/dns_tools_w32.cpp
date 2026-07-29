@@ -60,7 +60,6 @@ std::optional<std::vector<std::string>> txt_name(const char* name_)
 	}
 
 	std::optional<std::vector<std::string>> retval;
-	retval.emplace();
 
 	for (auto ptr = results; ptr; ptr = ptr->pNext) {
 		if (ptr->wType != DNS_TYPE_TEXT) {

@@ -66,9 +66,6 @@ public:
         std::optional<std::vector<mx_srv>> retval;
 
         return this->_process_item(name_, tgt_type, [&retval](ns_msg& message, const int count){
-            retval.emplace();
-            retval->reserve(count);
-
             for (int idx = 0; idx < count; ++idx) {
                 ns_rr raw_record;
                 NSTL2_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0, "Failed to parse DNS message");
@@ -95,6 +92,9 @@ public:
                 NSTL2_THROW_EXCEPTION_IF(expanded_length < 0, "invalid response");
 
                 mx_srv item{.address = std::string{item_name.data(), strnlen(item_name.data(), static_cast<size_t>(expanded_length))}, .priority = priority};
+                if (!retval.has_value()) {
+                    retval.emplace();
+                }
                 retval->push_back(std::move(item));
             }
         }) ? retval : std::nullopt;
@@ -106,9 +106,6 @@ public:
         std::optional<std::vector<std::string>> retval;
 
         return this->_process_item(name_, tgt_type, [&retval](ns_msg& message, const int count){
-            retval.emplace();
-            retval->reserve(count);
-
             for (int idx = 0; idx < count; ++idx) {
                 ns_rr raw_record;
                 NSTL2_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0, "Failed to parse DNS message");
@@ -130,6 +127,9 @@ public:
                     NSTL2_THROW_EXCEPTION_IF(end < next_p, "Invalid TXT record");
                     item.append(reinterpret_cast<const char*>(p), text_len);
                 }
+                if (!retval.has_value()) {
+                    retval.emplace();
+                }
                 retval->push_back(std::move(item));
             }
         }) ? retval : std::nullopt;
@@ -141,9 +141,6 @@ public:
         std::optional<std::vector<std::string>> retval;
 
         return this->_process_item(name_, tgt_type, [&retval](ns_msg& message, const int count){
-            retval.emplace();
-            retval->reserve(count);
-
             for (int idx = 0; idx < count; ++idx) {
                 ns_rr raw_record;
                 NSTL2_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0, "Failed to parse DNS message");
@@ -163,6 +160,9 @@ public:
                 );
                 NSTL2_THROW_EXCEPTION_IF(expanded_length < 0, "invalid response");
                 std::string cname{item_name.data(), strnlen(item_name.data(), static_cast<size_t>(expanded_length))};
+                if (!retval.has_value()) {
+                    retval.emplace();
+                }
                 retval->emplace_back(std::move(cname));
             }
         }) ? retval : std::nullopt;

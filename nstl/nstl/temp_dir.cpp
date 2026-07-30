@@ -49,23 +49,21 @@ fs::path random_name(const size_t len, const std::optional<unsigned int>& seed)
 }
 
 constexpr size_t dir_name_len = 8;
-}
+} // namespace
 
 namespace nstl
 {
 temp_dir::temp_dir(const std::optional<unsigned int> seed_)
     : temp_dir{ get_temp_path(), random_name(dir_name_len, seed_) }
 {
-    static_assert(std::is_same_v<unsigned int, std::random_device::result_type>, "Random device's output is not unsigned int");
+    static_assert(std::is_same_v<unsigned int, std::random_device::result_type>,
+                  "Random device's output is not unsigned int");
 }
 
-temp_dir::temp_dir(const std::filesystem::path& name_)
-    : temp_dir{ get_temp_path(), name_ }
-{}
+temp_dir::temp_dir(const std::filesystem::path& name_) : temp_dir{ get_temp_path(), name_ } {}
 
 temp_dir::temp_dir(const std::filesystem::path& parent_, const std::filesystem::path& name_)
-    : _target{ parent_ / name_ }
-    , _owned{ fs::create_directories(_target) }
+    : _target{ parent_ / name_ }, _owned{ fs::create_directories(_target) }
 {
     NSTL2_THROW_EXCEPTION_IF(!_owned, _target << " cannot be created");
     NSTL_DEBUG(_target << " created");
@@ -89,8 +87,5 @@ temp_dir::~temp_dir()
     }
 }
 
-const std::filesystem::path& temp_dir::path() const
-{
-    return _target;
-}
-}
+const std::filesystem::path& temp_dir::path() const { return _target; }
+} // namespace nstl

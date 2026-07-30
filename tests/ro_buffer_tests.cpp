@@ -7,10 +7,10 @@
 
 TEST(RoBuffer, IntParser)
 {
-    const std::string_view data{"123456 other"};
+    const std::string_view data{ "123456 other" };
     {
-        nstl::ro_buffer buffer{data};
-        std::istream stream{&buffer};
+        nstl::ro_buffer buffer{ data };
+        std::istream stream{ &buffer };
         int value = 0;
         stream >> value;
         EXPECT_FALSE(stream.fail());
@@ -18,8 +18,8 @@ TEST(RoBuffer, IntParser)
         EXPECT_EQ(value, 123456);
     }
     {
-        nstl::ro_buffer buffer{data.substr(1, 3)};
-        std::istream stream{&buffer};
+        nstl::ro_buffer buffer{ data.substr(1, 3) };
+        std::istream stream{ &buffer };
         int value = 0;
         stream >> value;
         EXPECT_FALSE(stream.fail());
@@ -30,11 +30,11 @@ TEST(RoBuffer, IntParser)
 
 TEST(RoBuffer, Content)
 {
-    const std::string_view data{"123456 other"};
-    nstl::ro_buffer buffer{data};
+    const std::string_view data{ "123456 other" };
+    nstl::ro_buffer buffer{ data };
     EXPECT_EQ(buffer.content(), data);
 
-    std::istream stream{&buffer};
+    std::istream stream{ &buffer };
     int value = 0;
     stream >> value;
     EXPECT_EQ(value, 123456);
@@ -46,9 +46,9 @@ TEST(RoBuffer, Content)
 
 TEST(RoBuffer, WideContent)
 {
-    const std::wstring_view data{L"123456 other"};
-    nstl::wro_buffer buffer{data};
-    std::wistream stream{&buffer};
+    const std::wstring_view data{ L"123456 other" };
+    nstl::wro_buffer buffer{ data };
+    std::wistream stream{ &buffer };
     int value = 0;
     stream >> value;
     EXPECT_FALSE(stream.fail());

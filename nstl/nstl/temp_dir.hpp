@@ -22,16 +22,13 @@ public:
 
     const std::filesystem::path& path() const;
 
-    operator const std::filesystem::path& () const
-    {
-        return this->path();
-    }
+    operator const std::filesystem::path&() const { return this->path(); }
 };
 
 inline std::filesystem::path operator/(const temp_dir& dir, const std::filesystem::path& right_)
 {
     return dir.path() / right_;
 }
-}
+} // namespace nstl
 
 #endif

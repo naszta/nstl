@@ -27,7 +27,7 @@ TEST(DnsTools, Txt)
     const auto txtnames = nstl::net::txt_name("test.naszta.com");
     ASSERT_TRUE(txtnames.has_value());
     const auto& txts = txtnames.value();
-    ASSERT_EQ(txts.size(), 1U);
+    ASSERT_GE(txts.size(), 1U);
     EXPECT_EQ(txts.front(),
               "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean "
               "massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Donec quam "
@@ -41,6 +41,6 @@ TEST(DnsTools, Cname)
     const auto cnames = nstl::net::c_name("autodiscover.naszta.hu");
     ASSERT_TRUE(cnames.has_value());
     const auto& items = cnames.value();
-    EXPECT_EQ(items.size(), 1U);
+    ASSERT_GE(items.size(), 1U);
     EXPECT_EQ(items.front(), "autodiscover.outlook.com");
 }

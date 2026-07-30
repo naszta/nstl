@@ -7,25 +7,40 @@
 
 namespace nstl
 {
-#ifdef _WIN32
-namespace
+namespace time
 {
-    struct ::tm* localtime_r(const ::time_t *src, struct ::tm *tgt)
+    struct std::tm* localtime_r(const std::time_t* src, struct std::tm* tgt)
     {
+#ifdef _WIN32
         return ::localtime_s(tgt, src) == 0 ? tgt : nullptr;
+#else
+        return ::localtime_r(src, tgt);
+#endif
     }
 
-    struct ::tm* gmtime_r(const ::time_t *src, struct ::tm *tgt)
+    struct std::tm* gmtime_r(const std::time_t* src, struct std::tm* tgt)
     {
+#ifdef _WIN32
         return ::gmtime_s(tgt, src) == 0 ? tgt : nullptr;
+#else
+        return ::gmtime_r(src, tgt);
+#endif
     }
 
-    ::time_t timegm(struct ::tm* src)
+    std::time_t timegm(struct std::tm* src)
     {
+#ifdef _WIN32
         return ::_mkgmtime(src);
+#else
+        return ::timegm(src);
+#endif
+    }
+
+    std::time_t mktime(struct std::tm* src)
+    {
+        return ::mktime(src);
     }
 }
-#endif
 
 std::chrono::sys_info c_timezone::_get_sys_info(const std::chrono::sys_seconds& sys_secs_, const std::chrono::local_seconds& local_secs_, const int is_dst_) const
 {
@@ -43,10 +58,10 @@ std::pair<std::chrono::local_seconds, int> c_timezone::to_local_common(const std
     const ::time_t utc_time_t = utc_seconds_.time_since_epoch().count();
 
     struct tm localtm;
-    NSTL2_THROW_EXCEPTION_IF(!localtime_r(&utc_time_t, &localtm), "date cannot be calculated");
+    NSTL2_THROW_EXCEPTION_IF(!time::localtime_r(&utc_time_t, &localtm), "date cannot be calculated");
     const auto ret_isdst = localtm.tm_isdst;
     localtm.tm_isdst = 0;
-    const auto local_time_t = timegm(&localtm);
+    const auto local_time_t = time::timegm(&localtm);
     NSTL2_THROW_EXCEPTION_IF(local_time_t == -1, "epoch cannot be calculated");
     return std::make_pair(std::chrono::local_seconds{std::chrono::seconds{local_time_t}}, ret_isdst);
 }
@@ -56,9 +71,9 @@ std::pair<std::chrono::sys_seconds, int> c_timezone::to_sys_common(const std::ch
     const ::time_t local_time_t = local_seconds_.time_since_epoch().count();
 
     struct tm localtm;
-    NSTL2_THROW_EXCEPTION_IF(!gmtime_r(&local_time_t, &localtm), "date cannot be calculated");
+    NSTL2_THROW_EXCEPTION_IF(!time::gmtime_r(&local_time_t, &localtm), "date cannot be calculated");
     localtm.tm_isdst = -1;
-    const auto utc_time_t = mktime(&localtm);
+    const auto utc_time_t = time::mktime(&localtm);
     NSTL2_THROW_EXCEPTION_IF(utc_time_t == -1, "epoch cannot be calculated");
     return std::make_pair(std::chrono::sys_seconds{std::chrono::seconds{utc_time_t}}, localtm.tm_isdst);
 }

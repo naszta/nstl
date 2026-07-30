@@ -2,12 +2,21 @@
 #define _NSTL_C_TIMEZONE 1
 
 #include <chrono>
+#include <ctime>
 #include <string>
 #include <string_view>
 #include <type_traits>
 
 namespace nstl
 {
+    namespace time
+    {
+        struct std::tm* localtime_r(const std::time_t* src, struct std::tm* tgt);
+        struct std::tm* gmtime_r(const std::time_t* src, struct std::tm* tgt);
+        std::time_t timegm(struct std::tm* src);
+        std::time_t mktime(struct std::tm* src);
+    }
+
     class c_timezone
     {
         std::string _name;

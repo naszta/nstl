@@ -18,15 +18,16 @@ namespace
 {
 using LogLevelAtom = std::atomic<LogLevel::LogInt>;
 
-LogLevelAtom current_level{static_cast<LogLevel::LogInt>(LogLevel::Info)};
+LogLevelAtom current_level{ static_cast<LogLevel::LogInt>(LogLevel::Info) };
 
 constexpr std::array<std::string_view, 4> log_levels{ "DEBUG", "INFO", "WARNING", "ERROR" };
-}
+} // namespace
 
 LogLevel::LogEnum LogLevel::parseLevel(const std::string_view view_)
 {
     const auto itr = std::ranges::find(log_levels, view_);
-    if (itr != log_levels.cend()) [[likely]] {
+    if (itr != log_levels.cend()) [[likely]]
+    {
         return static_cast<LogEnum>(std::distance(log_levels.cbegin(), itr));
     }
     NSTL2_THROW_EXCEPTION(view_ << " level is not known");
@@ -44,25 +45,16 @@ std::ostream& LogLevel::toStream(std::ostream& os_, const LogEnum level_)
     return os_;
 }
 
-void LogLevel::setLevel(const LogEnum level)
-{
-	current_level.store(static_cast<LogLevel::LogInt>(level));
-}
+void LogLevel::setLevel(const LogEnum level) { current_level.store(static_cast<LogLevel::LogInt>(level)); }
 
-LogLevel::LogEnum LogLevel::getLevel()
-{
-	return static_cast<LogLevel::LogEnum>(current_level.load());
-}
+LogLevel::LogEnum LogLevel::getLevel() { return static_cast<LogLevel::LogEnum>(current_level.load()); }
 
-bool LogLevel::isLevelActive(const LogEnum level)
-{
-	return getLevel() <= level;
-}
+bool LogLevel::isLevelActive(const LogEnum level) { return getLevel() <= level; }
 
 LogFunc& logger()
 {
-	static LogFunc instance;
-	return instance;
+    static LogFunc instance;
+    return instance;
 }
 
 class LoggerImpl : public std::enable_shared_from_this<LoggerImpl>
@@ -70,9 +62,9 @@ class LoggerImpl : public std::enable_shared_from_this<LoggerImpl>
     std::ofstream _ofs;
     std::ostream& _tgt;
     tbb::concurrent_bounded_queue<std::optional<std::string>> _queue;
-    std::atomic_bool _running{true};
+    std::atomic_bool _running{ true };
     std::thread _runner;
-    std::atomic_ptrdiff_t _throttle_size{std::numeric_limits<std::ptrdiff_t>::max()};
+    std::atomic_ptrdiff_t _throttle_size{ std::numeric_limits<std::ptrdiff_t>::max() };
 
     void worker()
     {
@@ -93,9 +85,8 @@ class LoggerImpl : public std::enable_shared_from_this<LoggerImpl>
 
 public:
     explicit LoggerImpl(const std::filesystem::path& logfile_)
-        : _ofs{ logfile_, std::ios_base::out | std::ios_base::binary | std::ios_base::app }
-        , _tgt{ _ofs }
-        , _runner{ &LoggerImpl::worker, this }
+        : _ofs{ logfile_, std::ios_base::out | std::ios_base::binary | std::ios_base::app }, _tgt{ _ofs },
+          _runner{ &LoggerImpl::worker, this }
     {
         try
         {
@@ -108,15 +99,9 @@ public:
         }
     }
 
-    explicit LoggerImpl(std::ostream& os_)
-        : _tgt{ os_ }
-        , _runner{ &LoggerImpl::worker, this }
-    {}
+    explicit LoggerImpl(std::ostream& os_) : _tgt{ os_ }, _runner{ &LoggerImpl::worker, this } {}
 
-    ~LoggerImpl()
-    {
-        this->stop();
-    }
+    ~LoggerImpl() { this->stop(); }
 
     void push(std::string&& line_)
     {
@@ -127,10 +112,7 @@ public:
         _queue.emplace(std::move(line_));
     }
 
-    size_t size() const
-    {
-        return _queue.size();
-    }
+    size_t size() const { return _queue.size(); }
 
     void stop()
     {
@@ -141,42 +123,34 @@ public:
         }
     }
 
-    void throttleSize(const std::ptrdiff_t size_)
-    {
-        _throttle_size.store(size_);
-    }
+    void throttleSize(const std::ptrdiff_t size_) { _throttle_size.store(size_); }
 };
 
-Logger::Logger(std::shared_ptr<LoggerImpl> log, const LogLevel::LogEnum level)
-	: _log{std::move(log)}
+Logger::Logger(std::shared_ptr<LoggerImpl> log, const LogLevel::LogEnum level) : _log{ std::move(log) }
 {
-	LogLevel::setLevel(level);
-	std::weak_ptr wptr{ _log };
-	logger() = [wptr = std::move(wptr)](LogLevel::LogEnum, const std::string_view line) {
-        if (auto lptr = wptr.lock()) [[likely]] {
-            lptr->push(std::string{line.data(), line.size()});
+    LogLevel::setLevel(level);
+    std::weak_ptr wptr{ _log };
+    logger() = [wptr = std::move(wptr)](LogLevel::LogEnum, const std::string_view line)
+    {
+        if (auto lptr = wptr.lock()) [[likely]]
+        {
+            lptr->push(std::string{ line.data(), line.size() });
         }
-	};
+    };
 }
 
-Logger::Logger(const LogLevel::LogEnum level)
-    : Logger{std::cout, level}
-{}
+Logger::Logger(const LogLevel::LogEnum level) : Logger{ std::cout, level } {}
 
 Logger::Logger(const std::filesystem::path& tgt_, const LogLevel::LogEnum level)
-    : Logger{std::make_shared<LoggerImpl>(tgt_), level}
-{}
+    : Logger{ std::make_shared<LoggerImpl>(tgt_), level }
+{
+}
 
-Logger::Logger(std::ostream& os_, const LogLevel::LogEnum level)
-    : Logger{ std::make_shared<LoggerImpl>(os_), level }
-{}
+Logger::Logger(std::ostream& os_, const LogLevel::LogEnum level) : Logger{ std::make_shared<LoggerImpl>(os_), level } {}
 
 Logger::~Logger() = default;
 
-size_t Logger::size() const
-{
-    return _log ? _log->size() : 0;
-}
+size_t Logger::size() const { return _log ? _log->size() : 0; }
 
 bool Logger::throttleSize(const std::ptrdiff_t size_)
 {
@@ -189,10 +163,7 @@ bool Logger::throttleSize(const std::ptrdiff_t size_)
     return false;
 }
 
-void Logger::reset()
-{
-    _log.reset();
-}
+void Logger::reset() { _log.reset(); }
 
 const std::chrono::time_zone* LogTimeZone::_parse_zone(const std::string_view zone_) const
 {
@@ -270,8 +241,8 @@ namespace
 constexpr char delimiter = '|';
 }
 
-LoggerFormatter::LoggerFormatter(
-    const LogTimeZone& tz_, const LogLevel::LogEnum level_, const char* file_, const int line_)
+LoggerFormatter::LoggerFormatter(const LogTimeZone& tz_, const LogLevel::LogEnum level_, const char* file_,
+                                 const int line_)
     : _level{ level_ }
 {
     tz_.printStamp(_oss) << delimiter;
@@ -291,13 +262,7 @@ void LoggerFormatter::operator()() const
     }
 }
 
-std::ostringstream& LoggerFormatter::target()
-{
-    return _oss;
-}
+std::ostringstream& LoggerFormatter::target() { return _oss; }
 
-std::string_view LoggerFormatter::logLine() const
-{
-    return _oss.view();
-}
-}
+std::string_view LoggerFormatter::logLine() const { return _oss.view(); }
+} // namespace nstl::log

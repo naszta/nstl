@@ -11,106 +11,125 @@ namespace nstl::net
 {
 std::optional<std::vector<mx_srv>> mx_name(const char* name_)
 {
-	NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
-	DNS_RECORD* results = nullptr;
-	const auto cleanup = on_scope_exit([&results]() {
-		if (results) {
-			DnsRecordListFree(results, DnsFreeRecordListDeep);
-		}
-	});
+    NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
+    DNS_RECORD* results = nullptr;
+    const auto cleanup = on_scope_exit(
+        [&results]()
+        {
+            if (results)
+            {
+                DnsRecordListFree(results, DnsFreeRecordListDeep);
+            }
+        });
 
-	const DNS_STATUS status = ::DnsQuery_UTF8(name_, DNS_TYPE_MX, DNS_QUERY_STANDARD, nullptr, &results, nullptr);
-	if (status)
-	{
-		return std::nullopt;
-	}
+    const DNS_STATUS status = ::DnsQuery_UTF8(name_, DNS_TYPE_MX, DNS_QUERY_STANDARD, nullptr, &results, nullptr);
+    if (status)
+    {
+        return std::nullopt;
+    }
 
-	std::optional<std::vector<mx_srv>> retval;
+    std::optional<std::vector<mx_srv>> retval;
 
-	for (auto ptr = results; ptr; ptr = ptr->pNext) {
-		if (ptr->wType != DNS_TYPE_MX) {
-			continue;
-		}
-		const auto& item = ptr->Data.MX;
-		mx_srv value{ .address = std::string{item.pNameExchange}, .priority = item.wPreference};
+    for (auto ptr = results; ptr; ptr = ptr->pNext)
+    {
+        if (ptr->wType != DNS_TYPE_MX)
+        {
+            continue;
+        }
+        const auto& item = ptr->Data.MX;
+        mx_srv value{ .address = std::string{ item.pNameExchange }, .priority = item.wPreference };
 
-		if (!retval.has_value()) {
-			retval.emplace();
-		}
-		retval->push_back(std::move(value));
-	}
+        if (!retval.has_value())
+        {
+            retval.emplace();
+        }
+        retval->push_back(std::move(value));
+    }
 
-	return retval;
+    return retval;
 }
 
 std::optional<std::vector<std::string>> txt_name(const char* name_)
 {
-	NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
-	DNS_RECORD* results = nullptr;
-	const auto cleanup = on_scope_exit([&results]() {
-		if (results) {
-			DnsRecordListFree(results, DnsFreeRecordListDeep);
-		}
-		});
+    NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
+    DNS_RECORD* results = nullptr;
+    const auto cleanup = on_scope_exit(
+        [&results]()
+        {
+            if (results)
+            {
+                DnsRecordListFree(results, DnsFreeRecordListDeep);
+            }
+        });
 
-	const DNS_STATUS status = ::DnsQuery_UTF8(name_, DNS_TYPE_TEXT, DNS_QUERY_STANDARD, nullptr, &results, nullptr);
-	if (status)
-	{
-		return std::nullopt;
-	}
+    const DNS_STATUS status = ::DnsQuery_UTF8(name_, DNS_TYPE_TEXT, DNS_QUERY_STANDARD, nullptr, &results, nullptr);
+    if (status)
+    {
+        return std::nullopt;
+    }
 
-	std::optional<std::vector<std::string>> retval;
+    std::optional<std::vector<std::string>> retval;
 
-	for (auto ptr = results; ptr; ptr = ptr->pNext) {
-		if (ptr->wType != DNS_TYPE_TEXT) {
-			continue;
-		}
-		const auto& item = ptr->Data.TXT;
-		std::string target;
+    for (auto ptr = results; ptr; ptr = ptr->pNext)
+    {
+        if (ptr->wType != DNS_TYPE_TEXT)
+        {
+            continue;
+        }
+        const auto& item = ptr->Data.TXT;
+        std::string target;
 
-		for (DWORD idx = 0; idx < item.dwStringCount; ++idx) {
-			target.append(item.pStringArray[idx]);
-		}
+        for (DWORD idx = 0; idx < item.dwStringCount; ++idx)
+        {
+            target.append(item.pStringArray[idx]);
+        }
 
-		if (!retval.has_value()) {
-			retval.emplace();
-		}
-		retval->push_back(std::move(target));
-	}
+        if (!retval.has_value())
+        {
+            retval.emplace();
+        }
+        retval->push_back(std::move(target));
+    }
 
-	return retval;
+    return retval;
 }
 
 std::optional<std::vector<std::string>> c_name(const char* name_)
 {
-	NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
-	DNS_RECORD* results = nullptr;
-	const auto cleanup = on_scope_exit([&results]() {
-		if (results) {
-			DnsRecordListFree(results, DnsFreeRecordListDeep);
-		}
-		});
+    NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
+    DNS_RECORD* results = nullptr;
+    const auto cleanup = on_scope_exit(
+        [&results]()
+        {
+            if (results)
+            {
+                DnsRecordListFree(results, DnsFreeRecordListDeep);
+            }
+        });
 
-	const DNS_STATUS status = ::DnsQuery_UTF8(name_, DNS_TYPE_CNAME, DNS_QUERY_STANDARD, nullptr, &results, nullptr);
-	if (status)
-	{
-		return std::nullopt;
-	}
+    const DNS_STATUS status = ::DnsQuery_UTF8(name_, DNS_TYPE_CNAME, DNS_QUERY_STANDARD, nullptr, &results, nullptr);
+    if (status)
+    {
+        return std::nullopt;
+    }
 
-	std::optional<std::vector<std::string>> retval;
+    std::optional<std::vector<std::string>> retval;
 
-	for (auto ptr = results; ptr; ptr = ptr->pNext) {
-		if (ptr->wType != DNS_TYPE_CNAME) {
-			continue;
-		}
-		const auto& item = ptr->Data.CNAME;
+    for (auto ptr = results; ptr; ptr = ptr->pNext)
+    {
+        if (ptr->wType != DNS_TYPE_CNAME)
+        {
+            continue;
+        }
+        const auto& item = ptr->Data.CNAME;
 
-		if (!retval.has_value()) {
-			retval.emplace();
-		}
-		retval->emplace_back(item.pNameHost);
-	}
+        if (!retval.has_value())
+        {
+            retval.emplace();
+        }
+        retval->emplace_back(item.pNameHost);
+    }
 
-	return retval;
+    return retval;
 }
-}
+} // namespace nstl::net

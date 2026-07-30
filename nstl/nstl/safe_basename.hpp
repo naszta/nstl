@@ -21,6 +21,6 @@ inline const char* safe_basename(const char* filename_)
     }
     return nullptr;
 }
-}
+} // namespace nstl
 
 #endif

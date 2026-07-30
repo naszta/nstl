@@ -25,22 +25,22 @@ private:
 };
 
 std::ostream& operator<<(std::ostream& os_, const exception& exc_);
-}
+} // namespace nstl
 
-#define NSTL2_THROW_EXCEPTION_IMPL(error, detail)                                           \
-    do                                                                                      \
-    {                                                                                       \
-        std::ostringstream _oss__;                                                          \
-        _oss__ << ::nstl::safe_basename(__FILE__) << ':' << __LINE__ << " - " << detail;    \
-        throw ::nstl::exception{_oss__.str(), __FILE__, __LINE__};                          \
+#define NSTL2_THROW_EXCEPTION_IMPL(error, detail)                                        \
+    do                                                                                   \
+    {                                                                                    \
+        std::ostringstream _oss__;                                                       \
+        _oss__ << ::nstl::safe_basename(__FILE__) << ':' << __LINE__ << " - " << detail; \
+        throw ::nstl::exception{ _oss__.str(), __FILE__, __LINE__ };                     \
     } while (false)
 
 #define NSTL2_THROW_EXCEPTION(detail) NSTL2_THROW_EXCEPTION_IMPL(::nstl::exception, detail)
 
-#define NSTL2_THROW_EXCEPTION_IF_IMPL(cond, error, detail)  \
-    if (cond) [[unlikely]]                                  \
-    {                                                       \
-        NSTL2_THROW_EXCEPTION_IMPL(error, detail);          \
+#define NSTL2_THROW_EXCEPTION_IF_IMPL(cond, error, detail) \
+    if (cond) [[unlikely]]                                 \
+    {                                                      \
+        NSTL2_THROW_EXCEPTION_IMPL(error, detail);         \
     }
 
 #define NSTL2_THROW_EXCEPTION_IF(cond, detail) NSTL2_THROW_EXCEPTION_IF_IMPL(cond, ::nstl::exception, detail)

@@ -5,26 +5,18 @@
 namespace nstl
 {
 exception::exception(const std::string& val_, const char* file_, int line_)
-    : std::runtime_error{val_}
-    , _file{file_}
-    , _line{line_}
-{}
+    : std::runtime_error{ val_ }, _file{ file_ }, _line{ line_ }
+{
+}
 
 exception::exception(const char* val_, const char* file_, int line_)
-    : std::runtime_error{ val_ }
-    , _file{ file_ }
-    , _line{ line_ }
-{}
-
-std::string_view exception::file() const
+    : std::runtime_error{ val_ }, _file{ file_ }, _line{ line_ }
 {
-    return _file ? std::string_view{ _file } : std::string_view{};
 }
 
-int exception::line() const
-{
-    return _line;
-}
+std::string_view exception::file() const { return _file ? std::string_view{ _file } : std::string_view{}; }
+
+int exception::line() const { return _line; }
 
 namespace
 {
@@ -46,10 +38,7 @@ std::ostream& print_exception(std::ostream& os_, const std::exception& exc_, con
         return print_exception(os_, nested_, level + 1);
     }
 }
-}
+} // namespace
 
-std::ostream& operator<<(std::ostream& os_, const exception& exc_)
-{
-    return print_exception(os_, exc_);
-}
-}
+std::ostream& operator<<(std::ostream& os_, const exception& exc_) { return print_exception(os_, exc_); }
+} // namespace nstl

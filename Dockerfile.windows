@@ -1,0 +1,42 @@
+# syntax=docker/dockerfile:1.7
+# escape=`
+
+# Stage 1: Build image
+FROM mcr.microsoft.com/windows/servercore:ltsc2025 AS build
+
+SHELL ["powershell", "-NoLogo", "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+# Chocolatey, then the VC++ build tools, CMake and Ninja
+RUN Set-ExecutionPolicy Bypass -Scope Process -Force; `
+    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+RUN choco install -y visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --passive --norestart"; `
+    choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System'; `
+    choco install -y ninja git ccache
+
+# vcpkg, for TBB and GoogleTest
+RUN git clone --depth 1 https://github.com/microsoft/vcpkg C:\vcpkg; `
+    C:\vcpkg\bootstrap-vcpkg.bat
+
+RUN C:\vcpkg\vcpkg.exe install tbb gtest --triplet x64-windows
+
+SHELL ["cmd", "/S", "/C"]
+
+WORKDIR C:\src
+COPY . .
+
+ENV CCACHE_DIR="C:\ccache"
+
+RUN --mount=type=cache,target=C:\ccache `
+    set "PATH=C:\vcpkg\installed\x64-windows\bin;%PATH%" && `
+    call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" && `
+    cmake -S . -B build -G Ninja `
+      -DCMAKE_BUILD_TYPE=Release `
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
+      -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake `
+      -DVCPKG_TARGET_TRIPLET=x64-windows && `
+    cmake --build build && `
+    cmake --install build --prefix C:\install
+
+ENV PATH="C:\vcpkg\installed\x64-windows\bin;C:\Windows\system32;C:\Windows"
+WORKDIR C:\src\build

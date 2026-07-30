@@ -38,6 +38,12 @@ A `Dockerfile` is provided for a reproducible Ubuntu-based build:
 docker build -t nstl .
 ```
 
+`Dockerfile.windows` provides the equivalent for a Windows container (MSVC Build Tools + vcpkg for TBB/GoogleTest), and runs in CI on `windows-latest`:
+
+```sh
+docker build -t nstl-windows -f Dockerfile.windows .
+```
+
 ## Components
 
 | Header | Description |

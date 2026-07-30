@@ -11,8 +11,8 @@ without pulling in a heavyweight dependency.
 - CMake 3.28+
 - [oneTBB](https://github.com/uxlfoundation/oneTBB) (found via `find_package(TBB REQUIRED)`) — used for the async logging queue
 - [GoogleTest](https://github.com/google/googletest) (found via `find_package(GTest REQUIRED)`) — install it via your system/package manager (e.g. `apt install libgtest-dev googletest`), it is no longer fetched automatically
-- Windows: links against `Ws2_32.lib` and `Dnsapi.lib`
-- Linux/macOS: links against `resolv`
+- Windows: links against `Ws2_32.lib`, `Dnsapi.lib`, and `Advapi32.lib` (hashing via CryptoAPI)
+- Linux/macOS: links against `resolv`, and requires [OpenSSL](https://www.openssl.org/) (found via `find_package(OpenSSL REQUIRED)`, e.g. `apt install libssl-dev`) for hashing
 
 ## Building
 
@@ -49,6 +49,7 @@ docker build -t nstl .
 | [`nstl/macros.hpp`](nstl/nstl/macros.hpp) | `NSTL_THROW_EXCEPTION` / `NSTL_THROW_EXCEPTION_IF` — throw an exception of a caller-chosen type, with a message prefixed by file (via `safe_basename`) and line number. |
 | [`nstl/exception.hpp`](nstl/nstl/exception.hpp) | `nstl::exception` — a `std::runtime_error` that records the throw site's file/line and prints nested exception chains via `operator<<`. The `NSTL2_THROW_EXCEPTION` / `NSTL2_THROW_EXCEPTION_IF` macros throw one with a message prefixed by file (via `safe_basename`) and line number. |
 | [`nstl/logging.hpp`](nstl/nstl/logging.hpp) | `nstl::log::Logger` and the `NSTL_DEBUG` / `NSTL_INFO` / `NSTL_WARNING` / `NSTL_ERROR` macros — leveled, timestamped logging to a file, `ostream`, or a custom sink function, with a timezone-aware timestamp via `LogTimeZone`. Log lines are handed off to a background thread through a TBB concurrent queue, so callers don't block on I/O. |
+| [`nstl/datahash.hpp`](nstl/nstl/datahash.hpp) / [`nstl/datahash_fwd.hpp`](nstl/nstl/datahash_fwd.hpp) | `nstl::Hasher` — a streaming MD5/SHA1/SHA256/SHA512 hasher (`HashType`), plus `hash_file()` to hash a file directly, `hash_to_hex()` for a readable digest, and `parseHashType()` to parse a `HashType` from its name. Backed by OpenSSL on Linux/macOS and Windows CryptoAPI on Windows. |
 
 ## Usage
 

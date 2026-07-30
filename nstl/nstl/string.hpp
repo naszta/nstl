@@ -1,0 +1,66 @@
+#ifndef _NSTL_STRING
+#define _NSTL_STRING 1
+
+#include <cctype>
+#include <string_view>
+
+namespace nstl
+{
+template <class CharT, class TraitsT, class FuncT>
+size_t split_view_func(const std::basic_string_view<CharT, TraitsT> view_, const CharT delim_, FuncT func, const bool skip_empty_ = true)
+{
+    using str_view = typename std::basic_string_view<CharT, TraitsT>;
+    using size_type = typename str_view::size_type;
+
+    size_type prev = 0;
+    size_t retval = 0;
+
+    for (auto pos = view_.find(delim_); pos != str_view::npos; prev = pos + 1, pos = view_.find(delim_, prev))
+    {
+        const auto item = pos == prev ? str_view{} : str_view{view_.data() + prev, pos - prev};
+        if (skip_empty_ && item.empty()) {
+            continue;
+        }
+        func(item);
+        ++retval;
+    }
+
+    const auto item = prev < view_.size() ? view_.substr(prev) : str_view{};
+    if (skip_empty_ && item.empty()) {
+        return retval;
+    }
+    func(item);
+    ++retval;
+    return retval;
+}
+
+template <class CharT, class TraitsT>
+std::basic_string_view<CharT, TraitsT> right_trim_view(std::basic_string_view<CharT, TraitsT> view_)
+{
+    while (!view_.empty() && std::isspace(view_.back()))
+    {
+        view_ = view_.substr(0, view_.size() - 1);
+    }
+
+    return view_;
+}
+
+template <class CharT, class TraitsT>
+std::basic_string_view<CharT, TraitsT> left_trim_view(std::basic_string_view<CharT, TraitsT> view_)
+{
+    while (!view_.empty() && std::isspace(view_.front()))
+    {
+        view_ = view_.substr(1);
+    }
+
+    return view_;
+}
+
+template <class CharT, class TraitsT>
+std::basic_string_view<CharT, TraitsT> trim_view(std::basic_string_view<CharT, TraitsT> view_)
+{
+    return right_trim_view(left_trim_view(view_));
+}
+}
+
+#endif

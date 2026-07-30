@@ -10,6 +10,7 @@ without pulling in a heavyweight dependency.
 - C++20 compiler (GCC, Clang, or MSVC)
 - CMake 3.28+
 - [oneTBB](https://github.com/uxlfoundation/oneTBB) (found via `find_package(TBB REQUIRED)`) — used for the async logging queue
+- [GoogleTest](https://github.com/google/googletest) (found via `find_package(GTest REQUIRED)`) — install it via your system/package manager (e.g. `apt install libgtest-dev googletest`), it is no longer fetched automatically
 - Windows: links against `Ws2_32.lib` and `Dnsapi.lib`
 - Linux/macOS: links against `resolv`
 
@@ -20,7 +21,7 @@ cmake -S . -B build
 cmake --build build
 ```
 
-Tests (GoogleTest, fetched automatically via `FetchContent`) run through CTest:
+Tests (GoogleTest, found on the system via `find_package`) run through CTest:
 
 ```sh
 ctest --test-dir build
@@ -43,6 +44,7 @@ docker build -t nstl .
 | [`nstl/scope_exit.hpp`](nstl/nstl/scope_exit.hpp) | `nstl::scope_exit` / `on_scope_exit` — RAII guard that runs a callable when the scope exits. |
 | [`nstl/unlock_guard.hpp`](nstl/nstl/unlock_guard.hpp) | `nstl::unlock_guard` — the inverse of `std::lock_guard`: unlocks one or more mutexes for the current scope and re-locks them on destruction. |
 | [`nstl/safe_basename.hpp`](nstl/nstl/safe_basename.hpp) | `nstl::safe_basename` — returns the filename portion of a path, platform-aware (`\\` on Windows, `/` elsewhere), without allocating. |
+| [`nstl/string.hpp`](nstl/nstl/string.hpp) | `nstl::split_view_func`, `nstl::trim_view` / `left_trim_view` / `right_trim_view` — header-only `string_view` helpers to split on a delimiter (invoking a callback per token) and trim leading/trailing whitespace, without allocating. |
 | [`nstl/temp_dir.hpp`](nstl/nstl/temp_dir.hpp) | `nstl::temp_dir` — RAII wrapper that creates a temporary directory (random, named, or under a given parent) and removes it on destruction. |
 | [`nstl/macros.hpp`](nstl/nstl/macros.hpp) | `NSTL_THROW_EXCEPTION` / `NSTL_THROW_EXCEPTION_IF` — throw an exception of a caller-chosen type, with a message prefixed by file (via `safe_basename`) and line number. |
 | [`nstl/exception.hpp`](nstl/nstl/exception.hpp) | `nstl::exception` — a `std::runtime_error` that records the throw site's file/line and prints nested exception chains via `operator<<`. The `NSTL2_THROW_EXCEPTION` / `NSTL2_THROW_EXCEPTION_IF` macros throw one with a message prefixed by file (via `safe_basename`) and line number. |

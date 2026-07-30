@@ -23,6 +23,17 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if (WIN32)
+  set(USING_OPENSSL OFF CACHE BOOL "")
+else()
+  set(USING_OPENSSL ON CACHE BOOL "")
+endif()
+
+# openssl
+if (USING_OPENSSL)
+  find_package(OpenSSL REQUIRED)
+endif()
+
 # tbb
 find_package(TBB REQUIRED)
 set(TBB_TEST OFF CACHE BOOL "" FORCE)

@@ -10,6 +10,7 @@ SET(nstllibHdrs
   nstl/ro_buffer.hpp
   nstl/safe_basename.hpp
   nstl/scope_exit.hpp
+  nstl/string.hpp
   nstl/temp_dir.hpp
   nstl/unlock_guard.hpp
 )

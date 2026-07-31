@@ -12,11 +12,11 @@ namespace
 class HasherOpenSsl : public Hasher
 {
     const HashType _type;
-    EVP_MD_CTX* _mdctx{nullptr};
+    EVP_MD_CTX* _mdctx{ nullptr };
 
     void init()
     {
-        const EVP_MD *md = nullptr;
+        const EVP_MD* md = nullptr;
         switch (_type)
         {
         case HashType::MD5:
@@ -38,26 +38,25 @@ class HasherOpenSsl : public Hasher
     }
 
 public:
-    explicit HasherOpenSsl(const HashType type_)
-        : _type{type_}
-        , _mdctx{::EVP_MD_CTX_new()}
-    {
-        this->init();
-    }
+    explicit HasherOpenSsl(const HashType type_) : _type{ type_ }, _mdctx{ ::EVP_MD_CTX_new() } { this->init(); }
 
     void reset() override
     {
-        if (_mdctx) [[likely]] {
+        if (_mdctx) [[likely]]
+        {
             NSTL2_THROW_EXCEPTION_IF(!::EVP_MD_CTX_reset(_mdctx), "reset context failed");
             this->init();
-        } else {
+        }
+        else
+        {
             NSTL2_THROW_EXCEPTION("Null context cannot be reset");
         }
     }
 
     ~HasherOpenSsl() override
     {
-        if (_mdctx) {
+        if (_mdctx)
+        {
             ::EVP_MD_CTX_free(_mdctx);
             _mdctx = nullptr;
         }
@@ -65,7 +64,7 @@ public:
 
     void add(const char* data_, size_t size_) override
     {
-        NSTL2_THROW_EXCEPTION_IF(!EVP_DigestUpdate(_mdctx, data_, size_), "EVP_DigestUpdate failed");
+        NSTL2_THROW_EXCEPTION_IF(!::EVP_DigestUpdate(_mdctx, data_, size_), "EVP_DigestUpdate failed");
     }
 
     HashValue finish() override
@@ -73,15 +72,12 @@ public:
         HashValue buffer;
         buffer.resize(static_cast<std::underlying_type_t<HashType>>(_type));
         unsigned int md_len = buffer.size();
-        NSTL2_THROW_EXCEPTION_IF(!EVP_DigestFinal_ex(_mdctx, buffer.data(), &md_len), "EVP_DigestFinal_ex failed");
+        NSTL2_THROW_EXCEPTION_IF(!::EVP_DigestFinal_ex(_mdctx, buffer.data(), &md_len), "EVP_DigestFinal_ex failed");
         buffer.resize(md_len);
         return buffer;
     }
 };
-}
+} // namespace
 
-std::shared_ptr<Hasher> Hasher::factory(const HashType type_)
-{
-    return std::make_shared<HasherOpenSsl>(type_);
-}
-}
+std::shared_ptr<Hasher> Hasher::factory(const HashType type_) { return std::make_shared<HasherOpenSsl>(type_); }
+} // namespace nstl

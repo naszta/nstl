@@ -48,12 +48,13 @@ TEST(HashTest, SimpleSHA512)
     hasher->add("Example payload");
     const auto value = hasher->finish();
     const auto readable = nstl::hash_to_hex(value);
-    EXPECT_EQ(readable, "321D982DD230977BC36BCC2D3CB9A1496C707A3544B43BBC9A95D64DDD55BB08EA0BDC9D59E0D541CDF25FEF230C1955B065AABBE0BF39F1B83B747134599EBB");
+    EXPECT_EQ(readable, "321D982DD230977BC36BCC2D3CB9A1496C707A3544B43BBC9A95D64DDD55BB08EA0BDC9D59E0D541CDF25FEF230C19"
+                        "55B065AABBE0BF39F1B83B747134599EBB");
 }
 
 TEST(HashTest, ResetTest)
 {
-    constexpr std::string_view test_payload{"Other payload"};
+    constexpr std::string_view test_payload{ "Other payload" };
     const auto hasher0 = nstl::Hasher::factory();
     hasher0->add("Example payload");
     hasher0->reset();
@@ -71,10 +72,10 @@ namespace
 {
 fs::path test_data_path()
 {
-    const fs::path src_file{__FILE__};
+    const fs::path src_file{ __FILE__ };
     return src_file.parent_path() / "data";
 }
-}
+} // namespace
 
 TEST(HashTest, FileTest)
 {

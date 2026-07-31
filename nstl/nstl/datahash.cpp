@@ -6,12 +6,12 @@
 
 #include <fcntl.h>
 #ifdef _WIN32
-# include <io.h>
-# define file_open _wopen
+#include <io.h>
+#define file_open _wopen
 #else
-# include <unistd.h>
-# define O_BINARY 0
-# define file_open open
+#include <unistd.h>
+#define O_BINARY 0
+#define file_open open
 #endif
 
 namespace nstl
@@ -24,9 +24,7 @@ HashValue hash_file(const std::filesystem::path& path_, const HashType type_, co
     NSTL2_THROW_EXCEPTION_IF(buffersize_ == 0, "Buffer size must not be 0");
     const auto file_handler = ::file_open(path_.c_str(), O_RDONLY | O_BINARY);
     NSTL2_THROW_EXCEPTION_IF(file_handler == -1, path_ << " cannot be opened");
-    const auto cleanup = nstl::on_scope_exit([file_handler]() {
-        ::close(file_handler);
-    });
+    const auto cleanup = nstl::on_scope_exit([file_handler]() { ::close(file_handler); });
     const auto hasher = Hasher::factory(type_);
     std::vector<char> buffer;
     buffer.resize(buffersize_);
@@ -87,4 +85,4 @@ std::optional<HashType> parseHashType(const std::string_view name_)
     }
     NSTL2_THROW_EXCEPTION(name_ << " is unknown hash type");
 }
-}
+} // namespace nstl

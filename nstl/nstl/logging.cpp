@@ -241,7 +241,7 @@ namespace
 constexpr char delimiter = '|';
 }
 
-LoggerFormatter::LoggerFormatter(const LogTimeZone& tz_, const LogLevel::LogEnum level_, const char* file_,
+LoggerFormatter::LoggerFormatter(const LogTimeZone& tz_, const LogLevel::LogEnum level_, const std::string_view file_,
                                  const int line_)
     : _level{ level_ }
 {

@@ -99,7 +99,7 @@ public:
 class LoggerFormatter
 {
 public:
-    LoggerFormatter(const LogTimeZone& tz_, LogLevel::LogEnum level_, const char* file_, int line_);
+    LoggerFormatter(const LogTimeZone& tz_, LogLevel::LogEnum level_, std::string_view file_, int line_);
     ~LoggerFormatter();
     LoggerFormatter(const LoggerFormatter&) = delete;
     LoggerFormatter& operator=(const LoggerFormatter&) = delete;
@@ -114,16 +114,16 @@ private:
 };
 } // namespace nstl::log
 
-#define NSTL_LOG_LEVEL_IMPL(level, details, help)                                                   \
-    do                                                                                              \
-    {                                                                                               \
-        if (::nstl::log::LogLevel::isLevelActive(level)) [[help]]                                   \
-        {                                                                                           \
-            ::nstl::log::LoggerFormatter __logger_{ ::nstl::log::LogTimeZone::tz_instance(), level, \
-                                                    ::nstl::safe_basename(__FILE__), __LINE__ };    \
-            __logger_.target() << details;                                                          \
-            __logger_();                                                                            \
-        }                                                                                           \
+#define NSTL_LOG_LEVEL_IMPL(level, details, help)                                                     \
+    do                                                                                                \
+    {                                                                                                 \
+        if (::nstl::log::LogLevel::isLevelActive(level)) [[help]]                                     \
+        {                                                                                             \
+            ::nstl::log::LoggerFormatter __logger_{ ::nstl::log::LogTimeZone::tz_instance(), level,   \
+                                                    ::nstl::safe_basename_view(__FILE__), __LINE__ }; \
+            __logger_.target() << details;                                                            \
+            __logger_();                                                                              \
+        }                                                                                             \
     } while (false)
 
 #define NSTL_LOG_LEVEL(level, details) NSTL_LOG_LEVEL_IMPL(level, details, likely)

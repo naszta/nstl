@@ -5,12 +5,12 @@
 
 #include <sstream>
 
-#define NSTL_THROW_EXCEPTION(error, detail)                                              \
-    do                                                                                   \
-    {                                                                                    \
-        std::ostringstream _oss__;                                                       \
-        _oss__ << ::nstl::safe_basename(__FILE__) << ':' << __LINE__ << " - " << detail; \
-        throw error{ _oss__.str() };                                                     \
+#define NSTL_THROW_EXCEPTION(error, detail)                                                   \
+    do                                                                                        \
+    {                                                                                         \
+        std::ostringstream _oss__;                                                            \
+        _oss__ << ::nstl::safe_basename_view(__FILE__) << ':' << __LINE__ << " - " << detail; \
+        throw error{ _oss__.str() };                                                          \
     } while (false)
 
 #define NSTL_THROW_EXCEPTION_IF(cond, error, detail) \

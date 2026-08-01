@@ -29,6 +29,12 @@ else()
   set(USING_OPENSSL ON CACHE BOOL "")
 endif()
 
+if (APPLE)
+  set(USING_HH_DATE ON CACHE BOOL "")
+else()
+  set(USING_HH_DATE OFF CACHE BOOL "")
+endif()
+
 # openssl
 if (USING_OPENSSL)
   find_package(OpenSSL REQUIRED)
@@ -40,6 +46,16 @@ set(TBB_TEST OFF CACHE BOOL "" FORCE)
 
 # gtest
 find_package(GTest REQUIRED)
+
+# hh date
+if (USING_HH_DATE)
+  set(USE_SYSTEM_TZ_DB ON CACHE BOOL "")
+  set(BUILD_TZ_LIB ON CACHE BOOL "")
+  set(COMPILE_WITH_C_LOCALE ON CACHE BOOL "")
+
+  add_compile_definitions(NSTL_USING_HH_DATE)
+  add_subdirectory(modules/date)
+endif()
 
 if (MSVC)
   add_compile_options(/W4 /WX /Zc:__cplusplus)

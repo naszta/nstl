@@ -7,6 +7,13 @@
 #include <string_view>
 #include <type_traits>
 
+#ifdef NSTL_USING_HH_DATE
+#include <date/date.h>
+#include <date/tz.h>
+#else
+namespace date = std::chrono;
+#endif
+
 namespace nstl
 {
 namespace time
@@ -21,10 +28,10 @@ class c_timezone
 {
     std::string _name;
 
-    std::chrono::sys_info _get_sys_info(const std::chrono::sys_seconds& sys_secs_,
-                                        const std::chrono::local_seconds& local_secs_, const int is_dst_) const;
-    std::pair<std::chrono::local_seconds, int> to_local_common(const std::chrono::sys_seconds& tp_) const;
-    std::pair<std::chrono::sys_seconds, int> to_sys_common(const std::chrono::local_seconds& tp_) const;
+    date::sys_info _get_sys_info(const date::sys_seconds& sys_secs_, const date::local_seconds& local_secs_,
+                                        const int is_dst_) const;
+    std::pair<date::local_seconds, int> to_local_common(const date::sys_seconds& tp_) const;
+    std::pair<date::sys_seconds, int> to_sys_common(const date::local_seconds& tp_) const;
 
 public:
     explicit c_timezone(std::string name_ = "current") : _name{ std::move(name_) } {}
@@ -32,10 +39,10 @@ public:
     std::string_view name() const noexcept { return _name; }
 
     template <class Duration>
-    auto to_sys(const std::chrono::local_time<Duration>& tp_) const
+    auto to_sys(const date::local_time<Duration>& tp_) const
         -> std::chrono::sys_time<std::common_type_t<Duration, std::chrono::seconds>>
     {
-        const auto local_seconds = std::chrono::floor<std::chrono::seconds>(tp_);
+        const auto local_seconds = date::floor<std::chrono::seconds>(tp_);
         const auto local_sub_seconds = tp_ - local_seconds;
 
         const auto [utc_seconds, _] = this->to_sys_common(local_seconds);
@@ -43,22 +50,22 @@ public:
     }
 
     template <class Duration>
-    auto to_sys(const std::chrono::local_time<Duration>& tp_, std::chrono::choose) const
+    auto to_sys(const date::local_time<Duration>& tp_, date::choose) const
         -> std::chrono::sys_time<std::common_type_t<Duration, std::chrono::seconds>>
     {
         return this->to_sys(tp_);
     }
 
-    template <class Duration> std::chrono::local_info get_info(const std::chrono::local_time<Duration>& tp) const
+    template <class Duration> date::local_info get_info(const date::local_time<Duration>& tp) const
     {
-        const auto local_secs = std::chrono::floor<std::chrono::seconds>(tp);
+        const auto local_secs = date::floor<std::chrono::seconds>(tp);
         const auto [sys_secs, is_dst] = this->to_sys_common(local_secs);
 
-        return std::chrono::local_info{ .result = std::chrono::local_info::unique,
+        return date::local_info{ .result = date::local_info::unique,
                                         .first = this->_get_sys_info(sys_secs, local_secs, is_dst),
-                                        .second = std::chrono::sys_info{
-                                            .begin = std::chrono::sys_seconds{ std::chrono::seconds::zero() },
-                                            .end = std::chrono::sys_seconds{ std::chrono::seconds::zero() },
+                                 .second = date::sys_info{
+                                     .begin = date::sys_seconds{ std::chrono::seconds::zero() },
+                                     .end = date::sys_seconds{ std::chrono::seconds::zero() },
                                             .offset = std::chrono::seconds::zero(),
                                             .save = std::chrono::minutes::zero(),
                                             .abbrev = std::string{},
@@ -67,18 +74,18 @@ public:
 
     template <class Duration>
     auto to_local(const std::chrono::sys_time<Duration>& tp_) const
-        -> std::chrono::local_time<std::common_type_t<Duration, std::chrono::seconds>>
+        -> date::local_time<std::common_type_t<Duration, std::chrono::seconds>>
     {
-        const auto utc_seconds = std::chrono::floor<std::chrono::seconds>(tp_);
+        const auto utc_seconds = date::floor<std::chrono::seconds>(tp_);
         const auto utc_sub_seconds = tp_ - utc_seconds;
 
         const auto [local_seconds, _] = this->to_local_common(utc_seconds);
         return local_seconds + utc_sub_seconds;
     }
 
-    template <class Duration> std::chrono::sys_info get_info(const std::chrono::sys_time<Duration>& tp) const
+    template <class Duration> date::sys_info get_info(const std::chrono::sys_time<Duration>& tp) const
     {
-        const auto sys_secs = std::chrono::floor<std::chrono::seconds>(tp);
+        const auto sys_secs = date::floor<std::chrono::seconds>(tp);
         const auto [local_secs, is_dst] = this->to_local_common(sys_secs);
         return this->_get_sys_info(sys_secs, local_secs, is_dst);
     }

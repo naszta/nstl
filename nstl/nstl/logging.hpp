@@ -15,6 +15,12 @@
 #include <string_view>
 #include <type_traits>
 
+#ifdef NSTL_USING_HH_DATE
+#include <date/tz.h>
+#else
+namespace date = std::chrono;
+#endif
+
 namespace nstl::log
 {
 class LogLevel
@@ -70,11 +76,11 @@ public:
 
 class LogTimeZone
 {
-    const std::chrono::time_zone* _zone{ nullptr };
+    const date::time_zone* _zone{ nullptr };
     std::optional<std::string> _name;
     mutable std::shared_mutex _lock;
 
-    inline const std::chrono::time_zone* _parse_zone(const std::string_view zone_) const;
+    inline const date::time_zone* _parse_zone(const std::string_view zone_) const;
 
 public:
     static LogTimeZone& tz_instance();

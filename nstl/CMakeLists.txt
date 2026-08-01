@@ -41,6 +41,12 @@ set(nstllib_private_dependencies
   TBB::tbb
 )
 
+if (USING_HH_DATE)
+  set(nstllib_public_dependencies date::date date::date-tz)
+else()
+  set(nstllib_public_dependencies)
+endif()
+
 if (USING_OPENSSL)
   list(APPEND nstllibSrcs nstl/datahashopenssl.cpp)
   list(APPEND nstllib_private_dependencies OpenSSL::Crypto)
@@ -62,6 +68,6 @@ else()
   list(APPEND nstllib_private_dependencies resolv)
 endif()
 
-target_link_libraries(nstllib PRIVATE ${nstllib_private_dependencies})
+target_link_libraries(nstllib PRIVATE ${nstllib_private_dependencies} PUBLIC ${nstllib_public_dependencies})
 
 set_target_properties(nstllib PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)

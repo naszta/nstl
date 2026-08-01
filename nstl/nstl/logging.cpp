@@ -12,6 +12,10 @@
 
 #include <oneapi/tbb/concurrent_queue.h>
 
+#ifdef NSTL_USING_HH_DATE
+#include <date/tz.h>
+#endif
+
 namespace nstl::log
 {
 namespace
@@ -165,15 +169,15 @@ bool Logger::throttleSize(const std::ptrdiff_t size_)
 
 void Logger::reset() { _log.reset(); }
 
-const std::chrono::time_zone* LogTimeZone::_parse_zone(const std::string_view zone_) const
+const date::time_zone* LogTimeZone::_parse_zone(const std::string_view zone_) const
 {
     if (zone_.empty())
     {
-        return std::chrono::current_zone();
+        return date::current_zone();
     }
     else
     {
-        return std::chrono::locate_zone(zone_);
+        return date::locate_zone(zone_);
     }
 }
 
@@ -206,12 +210,20 @@ std::ostringstream& LogTimeZone::printStamp(std::ostringstream& oss_) const
     std::shared_lock sl{ _lock };
     if (_zone)
     {
-        const std::chrono::zoned_time zd{ _zone, utc_now };
+        const date::zoned_time zd{ _zone, utc_now };
+#ifdef NSTL_USING_HH_DATE
+        date::to_stream(oss_, "%FT%T%z", zd);
+#else
         oss_ << std::format("{0:%F}T{0:%T%z}", zd);
+#endif
     }
     else
     {
+#ifdef NSTL_USING_HH_DATE
+        date::to_stream(oss_, "%FT%TZ", utc_now);
+#else
         oss_ << std::format("{0:%F}T{0:%T}Z", utc_now);
+#endif
     }
     return oss_;
 }

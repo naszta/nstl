@@ -1,0 +1,3 @@
+[submodule "modules/date"]
+	path = modules/date
+	url = git@github.com:HowardHinnant/date.git

@@ -37,6 +37,7 @@ public:
         Info,
         Warning,
         Error,
+        Terminate,
     };
 
     using LogInt = std::underlying_type_t<LogEnum>;

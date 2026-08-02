@@ -24,7 +24,7 @@ using LogLevelAtom = std::atomic<LogLevel::LogInt>;
 
 LogLevelAtom current_level{ static_cast<LogLevel::LogInt>(LogLevel::Info) };
 
-constexpr std::array<std::string_view, 4> log_levels{ "DEBUG", "INFO", "WARNING", "ERROR" };
+constexpr std::array<std::string_view, 5> log_levels{ "DEBUG", "INFO", "WARNING", "ERROR", "TERMINATE" };
 } // namespace
 
 LogLevel::LogEnum LogLevel::parseLevel(const std::string_view view_)
@@ -64,7 +64,7 @@ LogFunc& logger()
     return instance;
 }
 
-class LoggerImpl : public std::enable_shared_from_this<LoggerImpl>
+class LoggerImpl final : public std::enable_shared_from_this<LoggerImpl>
 {
     std::ofstream _ofs;
     std::ostream& _tgt;
@@ -110,13 +110,19 @@ public:
 
     ~LoggerImpl() { this->stop(); }
 
-    void push(std::string&& line_)
+    void push(const LogLevel::LogEnum level, std::string&& line_)
     {
         if (_throttle_size.load(std::memory_order::relaxed) < _queue.size()) [[unlikely]]
         {
             return;
         }
         _queue.emplace(std::move(line_));
+
+        if (level == LogLevel::Terminate) [[unlikely]]
+        {
+            this->stop();
+            std::abort();
+        }
     }
 
     size_t size() const { return _queue.size(); }
@@ -143,11 +149,11 @@ std::vector<std::shared_ptr<LoggerImpl>>& logStack()
 
 void setLoggerFunction(std::weak_ptr<LoggerImpl> wptr_)
 {
-    logger() = [wptr = std::move(wptr_)](LogLevel::LogEnum, const std::string_view line)
+    logger() = [wptr = std::move(wptr_)](const LogLevel::LogEnum level, const std::string_view line)
     {
         if (auto lptr = wptr.lock()) [[likely]]
         {
-            lptr->push(std::string{ line.data(), line.size() });
+            lptr->push(level, std::string{ line.data(), line.size() });
         }
     };
 }

@@ -4,7 +4,22 @@ INCLUDE_DIRECTORIES(
   ${nstllib_SOURCE_DIR}
 )
 
-ADD_EXECUTABLE(nstltest c_timezone_tests.cpp logging_tests.cpp range_print_tests.cpp ro_buffer_tests.cpp scope_exit_tests.cpp unlock_guard_tests.cpp safe_basename_tests.cpp dns_tools_tests.cpp temp_dir_tests.cpp string_tests.cpp datahash_tests.cpp)
+SET(nstltestSrcs
+  c_timezone_tests.cpp
+  logging_tests.cpp
+  range_print_tests.cpp
+  ro_buffer_tests.cpp
+  scope_exit_tests.cpp
+  unlock_guard_tests.cpp
+  safe_basename_tests.cpp
+  dns_tools_tests.cpp
+  temp_dir_tests.cpp
+  string_tests.cpp
+  datahash_tests.cpp
+  env_var_raii_tests.cpp
+)
+
+ADD_EXECUTABLE(nstltest ${nstltestSrcs})
 
 TARGET_LINK_LIBRARIES(nstltest nstllib GTest::gtest_main)
 

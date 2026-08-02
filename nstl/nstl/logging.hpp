@@ -57,9 +57,10 @@ class LoggerImpl;
 
 class Logger
 {
+    const bool _cout_logger{ false };
     std::shared_ptr<LoggerImpl> _log;
 
-    Logger(std::shared_ptr<LoggerImpl> log, LogLevel::LogEnum level);
+    Logger(std::shared_ptr<LoggerImpl> log, LogLevel::LogEnum level, bool cout_logger);
 
 public:
     explicit Logger(LogLevel::LogEnum level = LogLevel::Info);

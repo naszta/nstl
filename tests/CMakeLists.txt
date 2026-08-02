@@ -19,6 +19,10 @@ SET(nstltestSrcs
   env_var_raii_tests.cpp
 )
 
+if (USING_HH_DATE)
+  add_compile_definitions(NSTL_USING_HH_DATE)
+endif()
+
 ADD_EXECUTABLE(nstltest ${nstltestSrcs})
 
 TARGET_LINK_LIBRARIES(nstltest nstllib GTest::gtest_main)

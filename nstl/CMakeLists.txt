@@ -45,6 +45,7 @@ set(nstllib_private_dependencies
 
 if (USING_HH_DATE)
   set(nstllib_public_dependencies date::date date::date-tz)
+  add_compile_definitions(NSTL_USING_HH_DATE)
 else()
   set(nstllib_public_dependencies)
 endif()

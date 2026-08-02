@@ -5,6 +5,7 @@ INCLUDE_DIRECTORIES(
 )
 
 SET(nstltestSrcs
+  main.cpp
   c_timezone_tests.cpp
   logging_tests.cpp
   range_print_tests.cpp
@@ -25,7 +26,7 @@ endif()
 
 ADD_EXECUTABLE(nstltest ${nstltestSrcs})
 
-TARGET_LINK_LIBRARIES(nstltest nstllib GTest::gtest_main)
+TARGET_LINK_LIBRARIES(nstltest nstllib GTest::gtest)
 
 include(GoogleTest)
 gtest_discover_tests(nstltest)

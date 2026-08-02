@@ -1,5 +1,6 @@
 #include "logging.hpp"
 #include "exception.hpp"
+#include "global_init.hpp"
 
 #include <cstdlib>
 
@@ -132,6 +133,7 @@ public:
 
 Logger::Logger(std::shared_ptr<LoggerImpl> log, const LogLevel::LogEnum level) : _log{ std::move(log) }
 {
+    global_init();
     LogLevel::setLevel(level);
     std::weak_ptr wptr{ _log };
     logger() = [wptr = std::move(wptr)](LogLevel::LogEnum, const std::string_view line)

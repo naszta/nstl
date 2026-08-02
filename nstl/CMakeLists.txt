@@ -11,6 +11,7 @@ SET(nstllibHdrs
   nstl/dns_tools.hpp
   nstl/env_var_raii.hpp
   nstl/exception.hpp
+  nstl/global_init.hpp
   nstl/logging.hpp
   nstl/macros.hpp
   nstl/range_print.hpp
@@ -33,10 +34,10 @@ SET(nstllibSrcs
 )
 
 if(WIN32)
-  list(APPEND nstllibSrcs nstl/dns_tools_w32.cpp)
+  list(APPEND nstllibSrcs nstl/dns_tools_w32.cpp nstl/global_init_win32.cpp)
   add_compile_definitions(_CRT_NONSTDC_NO_DEPRECATE=1)
 else()
-  list(APPEND nstllibSrcs nstl/dns_tools_posix.cpp)
+  list(APPEND nstllibSrcs nstl/dns_tools_posix.cpp nstl/global_init_posix.cpp)
 endif()
 
 set(nstllib_private_dependencies

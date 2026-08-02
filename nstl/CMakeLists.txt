@@ -9,6 +9,7 @@ SET(nstllibHdrs
   nstl/datahash_fwd.hpp
   nstl/datahash.hpp
   nstl/dns_tools.hpp
+  nstl/env_var_raii.hpp
   nstl/exception.hpp
   nstl/logging.hpp
   nstl/macros.hpp
@@ -25,6 +26,7 @@ SET(nstllibSrcs
   nstl/c_timezone.cpp
   nstl/datahash.cpp
   nstl/dns_tools.cpp
+  nstl/env_var_raii.cpp
   nstl/exception.cpp
   nstl/logging.cpp
   nstl/temp_dir.cpp

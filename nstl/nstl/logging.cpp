@@ -133,11 +133,17 @@ public:
     void throttleSize(const std::ptrdiff_t size_) { _throttle_size.store(size_); }
 };
 
-Logger::Logger(std::shared_ptr<LoggerImpl> log, const LogLevel::LogEnum level) : _log{ std::move(log) }
+namespace
 {
-    LogLevel::setLevel(level);
-    std::weak_ptr wptr{ _log };
-    logger() = [wptr = std::move(wptr)](LogLevel::LogEnum, const std::string_view line)
+std::vector<std::shared_ptr<LoggerImpl>>& logStack()
+{
+    static std::vector<std::shared_ptr<LoggerImpl>> logs;
+    return logs;
+}
+
+void setLoggerFunction(std::weak_ptr<LoggerImpl> wptr_)
+{
+    logger() = [wptr = std::move(wptr_)](LogLevel::LogEnum, const std::string_view line)
     {
         if (auto lptr = wptr.lock()) [[likely]]
         {
@@ -146,16 +152,32 @@ Logger::Logger(std::shared_ptr<LoggerImpl> log, const LogLevel::LogEnum level) :
     };
 }
 
-Logger::Logger(const LogLevel::LogEnum level) : Logger{ std::cout, level } {}
+std::atomic_bool active_cout_logger{ false };
+} // namespace
+
+Logger::Logger(std::shared_ptr<LoggerImpl> log, const LogLevel::LogEnum level, bool cout_logger)
+    : _cout_logger{ cout_logger }, _log{ std::move(log) }
+{
+    NSTL2_THROW_EXCEPTION_IF(_cout_logger && active_cout_logger.exchange(true), "cout logger is already active!");
+    auto& logs = logStack();
+    logs.push_back(_log);
+    LogLevel::setLevel(level);
+    setLoggerFunction(_log);
+}
+
+Logger::Logger(const LogLevel::LogEnum level) : Logger{ std::make_shared<LoggerImpl>(std::cout), level, true } {}
 
 Logger::Logger(const std::filesystem::path& tgt_, const LogLevel::LogEnum level)
-    : Logger{ std::make_shared<LoggerImpl>(tgt_), level }
+    : Logger{ std::make_shared<LoggerImpl>(tgt_), level, false }
 {
 }
 
-Logger::Logger(std::ostream& os_, const LogLevel::LogEnum level) : Logger{ std::make_shared<LoggerImpl>(os_), level } {}
+Logger::Logger(std::ostream& os_, const LogLevel::LogEnum level)
+    : Logger{ std::make_shared<LoggerImpl>(os_), level, false }
+{
+}
 
-Logger::~Logger() = default;
+Logger::~Logger() { this->reset(); }
 
 size_t Logger::size() const { return _log ? _log->size() : 0; }
 
@@ -170,7 +192,33 @@ bool Logger::throttleSize(const std::ptrdiff_t size_)
     return false;
 }
 
-void Logger::reset() { _log.reset(); }
+void Logger::reset()
+{
+    std::shared_ptr<LoggerImpl> log;
+    log.swap(_log);
+    if (!log)
+    {
+        return;
+    }
+    if (_cout_logger)
+    {
+        active_cout_logger.store(false);
+    }
+
+    auto& logs = logStack();
+    if (!logs.empty() && logs.back() == log)
+    {
+        logs.pop_back();
+        if (!logs.empty())
+        {
+            setLoggerFunction(logs.back());
+        }
+    }
+    else
+    {
+        logs.erase(std::remove(logs.begin(), logs.end(), log), logs.end());
+    }
+}
 
 const date::time_zone* LogTimeZone::_parse_zone(const std::string_view zone_) const
 {

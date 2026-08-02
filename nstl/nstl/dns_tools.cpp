@@ -1,6 +1,5 @@
 #include "dns_tools.hpp"
 #include "exception.hpp"
-#include "scope_exit.hpp"
 
 #ifdef _WIN32
 #include <ws2tcpip.h>
@@ -13,6 +12,7 @@
 
 #include <cstring>
 #include <array>
+#include <memory>
 #include <stdexcept>
 
 namespace nstl::net
@@ -30,28 +30,34 @@ std::string hostname()
     return std::string{ buffer.data() };
 }
 
-std::optional<std::string> cannonical_name(const char* name_)
+namespace
+{
+struct AddrinfoDeleter
+{
+    void operator()(addrinfo* ptr) const
+    {
+        if (ptr)
+        {
+            ::freeaddrinfo(ptr);
+        }
+    }
+};
+} // namespace
+
+std::optional<std::string> canonical_name(const char* name_)
 {
     NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
     struct addrinfo hints;
     std::memset(&hints, 0, sizeof(addrinfo));
     hints.ai_family = AF_UNSPEC;
     hints.ai_flags = AI_CANONNAME;
-    addrinfo* result = nullptr;
-    const auto cleanup = on_scope_exit(
-        [&result]()
-        {
-            if (result)
-            {
-                ::freeaddrinfo(result);
-            }
-        });
-
-    NSTL2_THROW_EXCEPTION_IF(::getaddrinfo(name_, nullptr, &hints, &result) != 0, name_ << " cannot be resolved");
+    addrinfo* result_raw = nullptr;
+    NSTL2_THROW_EXCEPTION_IF(::getaddrinfo(name_, nullptr, &hints, &result_raw) != 0, name_ << " cannot be resolved");
+    std::unique_ptr<addrinfo, AddrinfoDeleter> result{ result_raw };
 
     std::optional<std::string> retval;
 
-    for (auto ptr = result; ptr != nullptr; ptr = ptr->ai_next)
+    for (auto ptr = result.get(); ptr != nullptr; ptr = ptr->ai_next)
     {
         if (ptr->ai_canonname)
         {
@@ -61,4 +67,9 @@ std::optional<std::string> cannonical_name(const char* name_)
     }
     return retval;
 }
+
+std::optional<std::string> canonical_name(const std::string& name_) { return canonical_name(name_.c_str()); }
+std::optional<std::vector<mx_srv>> mx_name(const std::string& name_) { return mx_name(name_.c_str()); }
+std::optional<std::vector<std::string>> txt_name(const std::string& name_) { return txt_name(name_.c_str()); }
+std::optional<std::vector<std::string>> c_name(const std::string& name_) { return c_name(name_.c_str()); }
 } // namespace nstl::net

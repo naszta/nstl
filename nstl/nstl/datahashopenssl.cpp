@@ -9,7 +9,7 @@ namespace nstl
 {
 namespace
 {
-class HasherOpenSsl : public Hasher
+class HasherOpenSsl final : public Hasher
 {
     const HashType _type;
     EVP_MD_CTX* _mdctx{ nullptr };
@@ -62,7 +62,7 @@ public:
         }
     }
 
-    void add(const char* data_, size_t size_) override
+    void add(const void* data_, size_t size_) override
     {
         NSTL2_THROW_EXCEPTION_IF(!::EVP_DigestUpdate(_mdctx, data_, size_), "EVP_DigestUpdate failed");
     }

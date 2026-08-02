@@ -9,7 +9,8 @@
 namespace nstl::net
 {
 std::string hostname();
-std::optional<std::string> cannonical_name(const char* name_);
+std::optional<std::string> canonical_name(const char* name_);
+std::optional<std::string> canonical_name(const std::string& name_);
 
 struct mx_srv
 {
@@ -18,8 +19,11 @@ struct mx_srv
 };
 
 std::optional<std::vector<mx_srv>> mx_name(const char* name_);
+std::optional<std::vector<mx_srv>> mx_name(const std::string& name_);
 std::optional<std::vector<std::string>> txt_name(const char* name_);
+std::optional<std::vector<std::string>> txt_name(const std::string& name_);
 std::optional<std::vector<std::string>> c_name(const char* name_);
+std::optional<std::vector<std::string>> c_name(const std::string& name_);
 } // namespace nstl::net
 
 #endif

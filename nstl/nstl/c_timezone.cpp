@@ -40,7 +40,7 @@ std::time_t mktime(struct std::tm* src) { return ::mktime(src); }
 } // namespace time
 
 date::sys_info c_timezone::_get_sys_info(const date::sys_seconds& sys_secs_, const date::local_seconds& local_secs_,
-                                         const int is_dst_) const
+                                         const int is_dst_)
 {
     return date::sys_info{
         .begin = sys_secs_,
@@ -51,7 +51,7 @@ date::sys_info c_timezone::_get_sys_info(const date::sys_seconds& sys_secs_, con
     };
 }
 
-std::pair<date::local_seconds, int> c_timezone::to_local_common(const date::sys_seconds& utc_seconds_) const
+std::pair<date::local_seconds, int> c_timezone::to_local_common(const date::sys_seconds& utc_seconds_)
 {
     const ::time_t utc_time_t = utc_seconds_.time_since_epoch().count();
 
@@ -64,7 +64,7 @@ std::pair<date::local_seconds, int> c_timezone::to_local_common(const date::sys_
     return std::make_pair(date::local_seconds{ std::chrono::seconds{ local_time_t } }, ret_isdst);
 }
 
-std::pair<date::sys_seconds, int> c_timezone::to_sys_common(const date::local_seconds& local_seconds_) const
+std::pair<date::sys_seconds, int> c_timezone::to_sys_common(const date::local_seconds& local_seconds_)
 {
     const ::time_t local_time_t = local_seconds_.time_since_epoch().count();
 

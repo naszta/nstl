@@ -51,7 +51,10 @@ std::ostream& LogLevel::toStream(std::ostream& os_, const LogEnum level_)
 
 void LogLevel::setLevel(const LogEnum level) { current_level.store(static_cast<LogLevel::LogInt>(level)); }
 
-LogLevel::LogEnum LogLevel::getLevel() { return static_cast<LogLevel::LogEnum>(current_level.load()); }
+LogLevel::LogEnum LogLevel::getLevel()
+{
+    return static_cast<LogLevel::LogEnum>(current_level.load(std::memory_order::relaxed));
+}
 
 bool LogLevel::isLevelActive(const LogEnum level) { return getLevel() <= level; }
 

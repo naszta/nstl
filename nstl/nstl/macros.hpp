@@ -14,9 +14,12 @@
     } while (false)
 
 #define NSTL_THROW_EXCEPTION_IF(cond, error, detail) \
-    if (cond) [[unlikely]]                           \
+    do                                               \
     {                                                \
-        NSTL_THROW_EXCEPTION(error, detail);         \
-    }
+        if (cond) [[unlikely]]                       \
+        {                                            \
+            NSTL_THROW_EXCEPTION(error, detail);     \
+        }                                            \
+    } while (false)
 
 #endif

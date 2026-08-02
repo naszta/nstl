@@ -4,7 +4,7 @@
 
 TEST(DnsTools, CannonName)
 {
-    const auto cname = nstl::net::cannonical_name("media.naszta.hu");
+    const auto cname = nstl::net::canonical_name("media.naszta.hu");
     ASSERT_TRUE(cname.has_value());
     EXPECT_EQ(cname.value(), "harmonia.bysh.me");
 }

@@ -4,6 +4,8 @@
 
 #include <iterator>
 
+#include <cstring>
+
 #include <fcntl.h>
 #ifdef _WIN32
 #include <io.h>
@@ -19,23 +21,24 @@ namespace nstl
 Hasher::Hasher() = default;
 Hasher::~Hasher() = default;
 
-HashValue hash_file(const std::filesystem::path& path_, const HashType type_, const size_t buffersize_)
+namespace
 {
-    NSTL2_THROW_EXCEPTION_IF(buffersize_ == 0, "Buffer size must not be 0");
+HashValue hash_file_impl(const std::filesystem::path& path_, const HashType type_, char* buffer_,
+                         const size_t buffersize_)
+{
+    NSTL2_THROW_EXCEPTION_IF(path_.empty(), "filename is empty");
     const auto file_handler = ::file_open(path_.c_str(), O_RDONLY | O_BINARY);
     NSTL2_THROW_EXCEPTION_IF(file_handler == -1, path_ << " cannot be opened");
     const auto cleanup = nstl::on_scope_exit([file_handler]() { ::close(file_handler); });
     const auto hasher = Hasher::factory(type_);
-    std::vector<char> buffer;
-    buffer.resize(buffersize_);
 
     int read_bytes = 1;
     while (0 < read_bytes)
     {
-        read_bytes = ::read(file_handler, buffer.data(), static_cast<unsigned int>(buffer.size()));
+        read_bytes = ::read(file_handler, buffer_, static_cast<unsigned int>(buffersize_));
         if (0 < read_bytes)
         {
-            hasher->add(buffer.data(), static_cast<size_t>(read_bytes));
+            hasher->add(buffer_, static_cast<size_t>(read_bytes));
             continue;
         }
         NSTL2_THROW_EXCEPTION_IF(read_bytes < 0, "Error while reading file: " << path_);
@@ -43,6 +46,23 @@ HashValue hash_file(const std::filesystem::path& path_, const HashType type_, co
 
     return hasher->finish();
 }
+} // namespace
+
+HashValue hash_file(const std::filesystem::path& path_, const HashType type_, const size_t buffersize_)
+{
+    NSTL2_THROW_EXCEPTION_IF(buffersize_ == 0, "Buffer size must not be 0");
+    std::vector<char> buffer;
+    buffer.resize(buffersize_);
+    return hash_file_impl(path_, type_, buffer.data(), buffer.size());
+}
+
+#ifdef __cpp_lib_span
+HashValue hash_file(const std::filesystem::path& path_, const std::span<char>& buffer_, const HashType type_)
+{
+    NSTL2_THROW_EXCEPTION_IF(buffer_.empty(), "Span is empty!");
+    return hash_file_impl(path_, type_, buffer_.data(), buffer_.size());
+}
+#endif
 
 std::string hash_to_hex(const HashValue& hash_)
 {
@@ -84,5 +104,21 @@ std::optional<HashType> parseHashType(const std::string_view name_)
         return HashType::Default;
     }
     NSTL2_THROW_EXCEPTION(name_ << " is unknown hash type");
+}
+
+void Hasher::add(const char* data_)
+{
+    if (data_)
+    {
+        this->add(data_, std::strlen(data_));
+    }
+}
+
+void Hasher::add(const wchar_t* data_)
+{
+    if (data_)
+    {
+        this->add(data_, std::wcslen(data_) * sizeof(wchar_t));
+    }
 }
 } // namespace nstl

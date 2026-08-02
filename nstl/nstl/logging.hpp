@@ -140,5 +140,6 @@ private:
 #define NSTL_INFO(details) NSTL_LOG_LEVEL(::nstl::log::LogLevel::Info, details)
 #define NSTL_WARNING(details) NSTL_LOG_LEVEL(::nstl::log::LogLevel::Warning, details)
 #define NSTL_ERROR(details) NSTL_LOG_LEVEL(::nstl::log::LogLevel::Error, details)
+#define NSTL_TERMINATE(details) NSTL_LOG_LEVEL(::nstl::log::LogLevel::Terminate, details)
 
 #endif

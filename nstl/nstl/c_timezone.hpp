@@ -28,10 +28,10 @@ class c_timezone
 {
     std::string _name;
 
-    date::sys_info _get_sys_info(const date::sys_seconds& sys_secs_, const date::local_seconds& local_secs_,
-                                        const int is_dst_) const;
-    std::pair<date::local_seconds, int> to_local_common(const date::sys_seconds& tp_) const;
-    std::pair<date::sys_seconds, int> to_sys_common(const date::local_seconds& tp_) const;
+    static date::sys_info _get_sys_info(const date::sys_seconds& sys_secs_, const date::local_seconds& local_secs_,
+                                        const int is_dst_);
+    static std::pair<date::local_seconds, int> to_local_common(const date::sys_seconds& tp_);
+    static std::pair<date::sys_seconds, int> to_sys_common(const date::local_seconds& tp_);
 
 public:
     explicit c_timezone(std::string name_ = "current") : _name{ std::move(name_) } {}
@@ -62,14 +62,14 @@ public:
         const auto [sys_secs, is_dst] = this->to_sys_common(local_secs);
 
         return date::local_info{ .result = date::local_info::unique,
-                                        .first = this->_get_sys_info(sys_secs, local_secs, is_dst),
+                                 .first = this->_get_sys_info(sys_secs, local_secs, is_dst),
                                  .second = date::sys_info{
                                      .begin = date::sys_seconds{ std::chrono::seconds::zero() },
                                      .end = date::sys_seconds{ std::chrono::seconds::zero() },
-                                            .offset = std::chrono::seconds::zero(),
-                                            .save = std::chrono::minutes::zero(),
-                                            .abbrev = std::string{},
-                                        } };
+                                     .offset = std::chrono::seconds::zero(),
+                                     .save = std::chrono::minutes::zero(),
+                                     .abbrev = std::string{},
+                                 } };
     }
 
     template <class Duration>

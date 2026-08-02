@@ -47,7 +47,7 @@ struct ThreadProvider
     HCRYPTPROV hProv{ 0 };
 };
 
-class HasherWin32 : public Hasher
+class HasherWin32 final : public Hasher
 {
     const HashType _type;
 
@@ -81,7 +81,7 @@ public:
 
     ~HasherWin32() override { this->clear(); }
 
-    void add(const char* data_, size_t size_) override
+    void add(const void* data_, size_t size_) override
     {
         NSTL2_THROW_EXCEPTION_IF(
             !::CryptHashData(_hHash, reinterpret_cast<const BYTE*>(data_), static_cast<DWORD>(size_), 0),

@@ -11,6 +11,7 @@
 #include <array>
 #include <functional>
 #include <cstring>
+#include <vector>
 
 #include <string.h>
 
@@ -21,22 +22,31 @@ namespace
 class DnsClient
 {
     static constexpr size_t buff_size = 4096;
-    std::array<unsigned char, buff_size> _response;
+    std::vector<unsigned char> _response;
     struct __res_state _state;
 
     bool _process_item(const char* name_, const int ns_type_,
                        const std::function<void(ns_msg& message, int count)>& func_)
     {
         NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
-        const auto length = res_nquery(&_state, name_, ns_c_in, ns_type_, _response.data(), _response.size());
-        if (length <= 0)
+        int length = -1;
+        while (length < 0)
         {
-            return false;
+            length = res_nquery(&_state, name_, ns_c_in, ns_type_, _response.data(), _response.size());
+            if (length <= 0)
+            {
+                return false;
+            }
+            if (_response.size() <= static_cast<size_t>(length)) [[unlikely]]
+            {
+                _response.resize(length + 1);
+                length = -1;
+            }
         }
-        NSTL2_THROW_EXCEPTION_IF(_response.size() < static_cast<size_t>(length),
-                                 length << " is greater than " << _response.size());
+
         ns_msg message;
-        NSTL2_THROW_EXCEPTION_IF(ns_initparse(_response.data(), length, &message) < 0, "ns_initparse failed");
+        NSTL2_THROW_EXCEPTION_IF(ns_initparse(_response.data(), length, &message) < 0,
+                                 "ns_initparse failed (" << length << " vs " << _response.size() << ')');
 
         const int count = ns_msg_count(message, ns_s_an);
 
@@ -51,7 +61,11 @@ public:
         return ins;
     }
 
-    DnsClient() { NSTL2_THROW_EXCEPTION_IF(res_ninit(&_state) < 0, "Resolver initialize failed"); }
+    DnsClient()
+    {
+        NSTL2_THROW_EXCEPTION_IF(res_ninit(&_state) < 0, "Resolver initialize failed");
+        _response.resize(buff_size);
+    }
 
     ~DnsClient() { res_nclose(&_state); }
     DnsClient(const DnsClient&) = delete;

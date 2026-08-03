@@ -44,3 +44,16 @@ TEST(DnsTools, Cname)
     ASSERT_GE(items.size(), 1U);
     EXPECT_EQ(items.front(), "autodiscover.outlook.com");
 }
+
+TEST(DnsTools, Srv)
+{
+    const auto srvs_opt = nstl::net::srv_name("_ping._udp.test.naszta.com");
+    ASSERT_TRUE(srvs_opt.has_value());
+    const auto& items = srvs_opt.value();
+    ASSERT_GE(items.size(), 1U);
+    const auto& front = items.front();
+    EXPECT_EQ(front.port, 1024);
+    EXPECT_EQ(front.priority, 5);
+    EXPECT_EQ(front.weight, 50);
+    EXPECT_EQ(front.address, "test.naszta.com");
+}

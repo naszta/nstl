@@ -24,6 +24,17 @@ std::optional<std::vector<std::string>> txt_name(const char* name_);
 std::optional<std::vector<std::string>> txt_name(const std::string& name_);
 std::optional<std::vector<std::string>> c_name(const char* name_);
 std::optional<std::vector<std::string>> c_name(const std::string& name_);
+
+struct gen_srv
+{
+    std::string address;
+    std::uint64_t port{ 0 };
+    std::uint16_t priority{ 0 };
+    std::uint16_t weight{ 0 };
+};
+
+std::optional<std::vector<gen_srv>> srv_name(const char* name_);
+std::optional<std::vector<gen_srv>> srv_name(const std::string& name_);
 } // namespace nstl::net
 
 #endif

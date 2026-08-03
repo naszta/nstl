@@ -72,4 +72,5 @@ std::optional<std::string> canonical_name(const std::string& name_) { return can
 std::optional<std::vector<mx_srv>> mx_name(const std::string& name_) { return mx_name(name_.c_str()); }
 std::optional<std::vector<std::string>> txt_name(const std::string& name_) { return txt_name(name_.c_str()); }
 std::optional<std::vector<std::string>> c_name(const std::string& name_) { return c_name(name_.c_str()); }
+std::optional<std::vector<gen_srv>> srv_name(const std::string& name_) { return srv_name(name_.c_str()); }
 } // namespace nstl::net

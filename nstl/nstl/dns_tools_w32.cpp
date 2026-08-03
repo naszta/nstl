@@ -111,4 +111,31 @@ std::optional<std::vector<std::string>> c_name(const char* name_)
 
     return retval;
 }
+
+std::optional<std::vector<gen_srv>> srv_name(const char* name_)
+{
+    std::optional<std::vector<gen_srv>> retval;
+
+    const auto results = get_results(name_, DNS_TYPE_SRV, DNS_QUERY_STANDARD);
+    for (auto ptr = results.get(); ptr; ptr = ptr->pNext)
+    {
+        if (ptr->wType != DNS_TYPE_SRV)
+        {
+            continue;
+        }
+        const auto& item = ptr->Data.SRV;
+        gen_srv value{ .address = std::string{ item.pNameTarget },
+                       .port = item.wPort,
+                       .priority = item.wPriority,
+                       .weight = item.wWeight };
+
+        if (!retval.has_value())
+        {
+            retval.emplace();
+        }
+        retval->push_back(std::move(value));
+    }
+
+    return retval;
+}
 } // namespace nstl::net

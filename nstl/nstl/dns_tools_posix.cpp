@@ -169,35 +169,76 @@ public:
         constexpr int tgt_type = ns_t_cname;
         std::optional<std::vector<std::string>> retval;
 
-        return this->_process_item(
-                   name_, tgt_type,
-                   [&retval](ns_msg& message, const int count)
-                   {
-                       for (int idx = 0; idx < count; ++idx)
-                       {
-                           ns_rr raw_record;
-                           NSTL2_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0,
-                                                    "Failed to parse DNS message");
-                           // message is not TXT
-                           if (ns_rr_class(raw_record) != ns_c_in || ns_rr_type(raw_record) != tgt_type)
-                           {
-                               continue;
-                           }
-                           const auto rdata = ns_rr_rdata(raw_record);
-                           std::array<char, NS_MAXDNAME> item_name;
+        return this->_process_item(name_, tgt_type,
+                                   [&retval](ns_msg& message, const int count)
+                                   {
+                                       for (int idx = 0; idx < count; ++idx)
+                                       {
+                                           ns_rr raw_record;
+                                           NSTL2_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0,
+                                                                    "Failed to parse DNS message");
+                                           // message is not TXT
+                                           if (ns_rr_class(raw_record) != ns_c_in || ns_rr_type(raw_record) != tgt_type)
+                                           {
+                                               continue;
+                                           }
+                                           const auto rdata = ns_rr_rdata(raw_record);
+                                           std::array<char, NS_MAXDNAME> item_name;
 
-                           const int expanded_length = dn_expand(ns_msg_base(message), ns_msg_end(message), rdata,
-                                                                 item_name.data(), item_name.size());
-                           NSTL2_THROW_EXCEPTION_IF(expanded_length < 0, "invalid response");
-                           std::string cname{ item_name.data(),
-                                              strnlen(item_name.data(), static_cast<size_t>(expanded_length)) };
-                           if (!retval.has_value())
-                           {
-                               retval.emplace();
-                           }
-                           retval->emplace_back(std::move(cname));
-                       }
-                   })
+                                           const int len = dn_expand(ns_msg_base(message), ns_msg_end(message), rdata,
+                                                                     item_name.data(), item_name.size());
+                                           NSTL2_THROW_EXCEPTION_IF(len < 0, "invalid response");
+                                           std::string cname{ item_name.data(),
+                                                              strnlen(item_name.data(), static_cast<size_t>(len)) };
+                                           if (!retval.has_value())
+                                           {
+                                               retval.emplace();
+                                           }
+                                           retval->emplace_back(std::move(cname));
+                                       }
+                                   })
+                   ? retval
+                   : std::nullopt;
+    }
+
+    std::optional<std::vector<gen_srv>> srv_name(const char* name_)
+    {
+        constexpr int tgt_type = ns_t_srv;
+        std::optional<std::vector<gen_srv>> retval;
+
+        return this->_process_item(name_, tgt_type,
+                                   [&retval](ns_msg& message, const int count)
+                                   {
+                                       for (int idx = 0; idx < count; ++idx)
+                                       {
+                                           ns_rr raw_record;
+                                           NSTL2_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0,
+                                                                    "Failed to parse DNS message");
+                                           // message is not TXT
+                                           if (ns_rr_class(raw_record) != ns_c_in || ns_rr_type(raw_record) != tgt_type)
+                                           {
+                                               continue;
+                                           }
+                                           const auto rdata = ns_rr_rdata(raw_record);
+
+                                           gen_srv record;
+                                           record.priority = ns_get16(rdata);
+                                           record.weight = ns_get16(rdata + 2);
+                                           record.port = ns_get16(rdata + 4);
+                                           std::array<char, NS_MAXDNAME> item_name;
+                                           const int len = dn_expand(ns_msg_base(message), ns_msg_end(message),
+                                                                     rdata + 6, item_name.data(), item_name.size());
+                                           NSTL2_THROW_EXCEPTION_IF(len < 0, "invalid response");
+                                           record.address.assign(item_name.data(),
+                                                                 strnlen(item_name.data(), static_cast<size_t>(len)));
+
+                                           if (!retval.has_value())
+                                           {
+                                               retval.emplace();
+                                           }
+                                           retval->emplace_back(std::move(record));
+                                       }
+                                   })
                    ? retval
                    : std::nullopt;
     }
@@ -209,4 +250,6 @@ std::optional<std::vector<mx_srv>> mx_name(const char* name_) { return DnsClient
 std::optional<std::vector<std::string>> txt_name(const char* name_) { return DnsClient::instance().txt_name(name_); }
 
 std::optional<std::vector<std::string>> c_name(const char* name_) { return DnsClient::instance().c_name(name_); }
+
+std::optional<std::vector<gen_srv>> srv_name(const char* name_) { return DnsClient::instance().srv_name(name_); }
 } // namespace nstl::net

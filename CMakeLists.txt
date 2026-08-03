@@ -23,20 +23,44 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set(NSTL_USING_CURL ON CACHE BOOL "Adding curl module")
+
+include(FetchContent)
+
+if (NSTL_USING_CURL)
+  set(ENABLE_CURL_MANUAL OFF CACHE BOOL "" FORCE)
+  set(BUILD_LIBCURL_DOCS OFF CACHE BOOL "" FORCE)
+  if (WIN32)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
+    set(CURL_USE_LIBPSL OFF CACHE BOOL "" FORCE)
+    set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(BUILD_STATIC_CURL ON CACHE BOOL "" FORCE)
+    FetchContent_Declare(CURL
+	    URL https://curl.se/download/curl-8.21.0.tar.gz
+	    DOWNLOAD_EXTRACT_TIMESTAMP true
+    )
+    FetchContent_MakeAvailable(CURL)
+  else()
+    find_package(CURL COMPONENTS HTTPS SSL)
+  endif()
+endif()
+
 if (WIN32)
-  set(USING_OPENSSL OFF CACHE BOOL "")
+  set(NSTL_USING_OPENSSL OFF CACHE BOOL "")
 else()
-  set(USING_OPENSSL ON CACHE BOOL "")
+  set(NSTL_USING_OPENSSL ON CACHE BOOL "")
 endif()
 
 if (APPLE)
-  set(USING_HH_DATE ON CACHE BOOL "")
+  set(NSTL_USING_HH_DATE ON CACHE BOOL "")
 else()
-  set(USING_HH_DATE OFF CACHE BOOL "")
+  set(NSTL_USING_HH_DATE OFF CACHE BOOL "")
 endif()
 
 # openssl
-if (USING_OPENSSL)
+if (NSTL_USING_OPENSSL)
   find_package(OpenSSL REQUIRED)
 endif()
 
@@ -48,7 +72,7 @@ set(TBB_TEST OFF CACHE BOOL "" FORCE)
 find_package(GTest REQUIRED)
 
 # hh date
-if (USING_HH_DATE)
+if (NSTL_USING_HH_DATE)
   set(USE_SYSTEM_TZ_DB ON CACHE BOOL "")
   set(BUILD_TZ_LIB ON CACHE BOOL "")
   set(COMPILE_WITH_C_LOCALE ON CACHE BOOL "")

@@ -1,15 +1,12 @@
 # Stage 1: Build image
-FROM ubuntu:noble AS build
+FROM ubuntu:latest AS build
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN --mount=type=cache,sharing=locked,target=/var/cache/apt \
     apt-get update && \
-    apt-get install -y build-essential git cmake gcc-14 g++-14 ccache ninja-build libtbb-dev libgtest-dev googletest libssl-dev && \
+    apt-get install -y build-essential git cmake ccache ninja-build libtbb-dev libgtest-dev googletest libssl-dev libcurl4-openssl-dev curl ca-certificates && \
     rm -rf /var/lib/apt/lists/*
-
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 14
 
 WORKDIR /src
 

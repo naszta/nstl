@@ -8,7 +8,7 @@
 int main(int argc_, char** argv_)
 {
     ::testing::InitGoogleTest(&argc_, argv_);
-    nstl::global_init();
+    nstl::global_init instance;
     nstl::log::Logger logger;
     NSTL_INFO("Log working");
     return RUN_ALL_TESTS();

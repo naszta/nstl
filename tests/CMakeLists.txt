@@ -20,7 +20,12 @@ SET(nstltestSrcs
   env_var_raii_tests.cpp
 )
 
-if (USING_HH_DATE)
+if (NSTL_USING_CURL)
+  list(APPEND nstltestSrcs http_client_tests.cpp)
+  add_compile_definitions(NSTL_USING_CURL)
+endif()
+
+if (NSTL_USING_HH_DATE)
   add_compile_definitions(NSTL_USING_HH_DATE)
 endif()
 

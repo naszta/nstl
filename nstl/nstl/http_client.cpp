@@ -1,0 +1,181 @@
+#include "http_client.hpp"
+#include "exception.hpp"
+#include "scope_exit.hpp"
+
+#include <curl/curl.h>
+
+#include <cstring>
+
+#include <regex>
+
+#define NSTL_CURL_CHECK(command)                                                               \
+    do                                                                                         \
+    {                                                                                          \
+        const auto _curl_res = command;                                                        \
+        if (_curl_res != CURLE_OK) [[unlikely]]                                                \
+        {                                                                                      \
+            NSTL2_THROW_EXCEPTION(#command << " failed: " << ::curl_easy_strerror(_curl_res)); \
+        }                                                                                      \
+    } while (false)
+
+namespace nstl
+{
+namespace
+{
+size_t writeFunction(const char* ptr, size_t size, size_t nmemb, std::string* data)
+{
+    if (ptr && data) [[likely]]
+    {
+        data->append(ptr, size * nmemb);
+        return size * nmemb;
+    }
+    return 0;
+}
+} // namespace
+void CurlDeleter::operator()(CURL* curl_) const
+{
+    if (curl_) [[likely]]
+    {
+        ::curl_easy_cleanup(curl_);
+    }
+}
+
+void CurlListDeleter::operator()(curl_slist* ptr_) const
+{
+    if (ptr_)
+    {
+        ::curl_slist_free_all(ptr_);
+    }
+}
+
+HttpClient::HttpClient(const bool verbose_) : _curl{ ::curl_easy_init() }
+{
+    static_assert(CURL_ERROR_SIZE <= error_size, "Error size should be at least CURL_ERROR_SIZE");
+    NSTL2_THROW_EXCEPTION_IF(!_curl, "curl_easy_init failed");
+    if (verbose_)
+    {
+        NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_VERBOSE, 1L));
+    }
+}
+
+HttpClient::~HttpClient() = default;
+
+bool HttpClient::is_http_success(const std::int32_t status_code_) { return 200 <= status_code_ && status_code_ < 300; }
+
+bool HttpClient::is_valid_url(const std::string_view url_)
+{
+    static const std::regex url_reg{ R"(^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?)" };
+    return std::regex_match(url_.cbegin(), url_.cend(), url_reg);
+}
+
+bool HttpClient::is_ssl_supported()
+{
+    const auto version =::curl_version_info(CURLVERSION_NOW);
+    return version->features & CURL_VERSION_SSL;
+}
+
+void HttpClient::_common(const char* url_, const bool verify_)
+{
+    NSTL2_THROW_EXCEPTION_IF(!url_, "URL pointer is nullptr!");
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_NOSIGNAL, 1L));
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_ERRORBUFFER, _error.data()));
+    _error[0] = '\0';
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_WRITEFUNCTION, writeFunction));
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_URL, url_));
+    if (_headers)
+    {
+        NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_HTTPHEADER, _headers.get()));
+    }
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_SSL_VERIFYPEER, verify_ ? 1L : 0L));
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_FOLLOWLOCATION, 1L));
+}
+
+std::pair<std::int32_t, std::string> HttpClient::get(const char* url_, const bool verify_)
+{
+    this->_common(url_, verify_);
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_HTTPGET, 1L));
+    std::string retval;
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_WRITEDATA, &retval));
+    long http_code = 0;
+    NSTL_CURL_CHECK(::curl_easy_perform(_curl.get()));
+    NSTL_CURL_CHECK(::curl_easy_getinfo(_curl.get(), CURLINFO_RESPONSE_CODE, &http_code));
+    return std::make_pair(static_cast<std::int32_t>(http_code), std::move(retval));
+}
+
+std::pair<std::int32_t, std::string> HttpClient::post(const char* url_, const bool verify_)
+{
+    return this->post(url_, std::string_view{}, verify_);
+}
+
+std::pair<std::int32_t, std::string> HttpClient::post(const char* url_, const std::string_view data_,
+                                                      const bool verify_)
+{
+    this->_common(url_, verify_);
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_POST, 1L));
+    if (!data_.empty())
+    {
+        NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_POSTFIELDSIZE, data_.size()));
+        NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_POSTFIELDS, data_.data()));
+    }
+    std::string retval;
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_WRITEDATA, &retval));
+
+    long http_code = 0;
+    NSTL_CURL_CHECK(::curl_easy_perform(_curl.get()));
+    NSTL_CURL_CHECK(::curl_easy_getinfo(_curl.get(), CURLINFO_RESPONSE_CODE, &http_code));
+    return std::make_pair(static_cast<std::int32_t>(http_code), std::move(retval));
+}
+
+bool HttpClient::add_header(const char* header_)
+{
+    NSTL2_THROW_EXCEPTION_IF(!header_, "header is nullptr");
+    const auto chunk = ::curl_slist_append(_headers.get(), header_);
+    NSTL2_THROW_EXCEPTION_IF(!chunk, "curl_slist_append failed");
+    _headers.release();
+    _headers.reset(chunk);
+    return true;
+}
+
+std::string HttpClient::url_encode(const std::string_view data_) const
+{
+    if (data_.empty())
+    {
+        return std::string{};
+    }
+    const auto encoded = ::curl_easy_escape(_curl.get(), data_.data(), static_cast<int>(data_.size()));
+    NSTL2_THROW_EXCEPTION_IF(!encoded, data_ << " failed to be encoded by curl_easy_escape");
+    const auto cleaner = on_scope_exit(
+        [encoded]()
+        {
+            if (encoded)
+            {
+                ::curl_free(encoded);
+            }
+        });
+    return std::string{ encoded };
+}
+
+std::string HttpClient::url_decode(const std::string_view data_) const
+{
+    if (data_.empty())
+    {
+        return std::string{};
+    }
+    int out_len = 0;
+    const auto decoded = ::curl_easy_unescape(_curl.get(), data_.data(), static_cast<int>(data_.size()), &out_len);
+    NSTL2_THROW_EXCEPTION_IF(!decoded, data_ << " failed to be decoded by curl_easy_unescape");
+    const auto cleaner = on_scope_exit(
+        [decoded]()
+        {
+            if (decoded)
+            {
+                ::curl_free(decoded);
+            }
+        });
+    return std::string{ decoded, static_cast<size_t>(out_len) };
+}
+
+std::string_view HttpClient::error_view() const { return _error.data(); }
+
+void HttpClient::reset() { curl_easy_reset(_curl.get()); }
+} // namespace nstl

@@ -8,6 +8,7 @@ SET(nstllibHdrs
   nstl/c_timezone.hpp
   nstl/datahash_fwd.hpp
   nstl/datahash.hpp
+  nstl/dead_lock_detect.hpp
   nstl/dns_tools.hpp
   nstl/env_var_raii.hpp
   nstl/exception.hpp
@@ -26,6 +27,7 @@ SET(nstllibHdrs
 SET(nstllibSrcs
   nstl/c_timezone.cpp
   nstl/datahash.cpp
+  nstl/dead_lock_detect.cpp
   nstl/dns_tools.cpp
   nstl/env_var_raii.cpp
   nstl/exception.cpp

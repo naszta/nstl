@@ -29,8 +29,7 @@ constexpr std::array<std::string_view, 5> log_levels{ "DEBUG", "INFO", "WARNING"
 
 LogLevel::LogEnum LogLevel::parseLevel(const std::string_view view_)
 {
-    const auto itr = std::ranges::find(log_levels, view_);
-    if (itr != log_levels.cend()) [[likely]]
+    if (const auto itr = std::ranges::find(log_levels, view_); itr != log_levels.cend()) [[likely]]
     {
         return static_cast<LogEnum>(std::distance(log_levels.cbegin(), itr));
     }
@@ -49,7 +48,10 @@ std::ostream& LogLevel::toStream(std::ostream& os_, const LogEnum level_)
     return os_;
 }
 
-void LogLevel::setLevel(const LogEnum level) { current_level.store(static_cast<LogLevel::LogInt>(level)); }
+LogLevel::LogEnum LogLevel::setLevel(const LogEnum level)
+{
+    return static_cast<LogLevel::LogEnum>(current_level.exchange(static_cast<LogLevel::LogInt>(level)));
+}
 
 LogLevel::LogEnum LogLevel::getLevel()
 {
@@ -66,6 +68,7 @@ LogFunc& logger()
 
 class LoggerImpl final : public std::enable_shared_from_this<LoggerImpl>
 {
+    const LogLevel::LogEnum _level;
     std::ofstream _ofs;
     std::ostream& _tgt;
     tbb::concurrent_bounded_queue<std::optional<std::string>> _queue;
@@ -91,9 +94,9 @@ class LoggerImpl final : public std::enable_shared_from_this<LoggerImpl>
     }
 
 public:
-    explicit LoggerImpl(const std::filesystem::path& logfile_)
-        : _ofs{ logfile_, std::ios_base::out | std::ios_base::binary | std::ios_base::app }, _tgt{ _ofs },
-          _runner{ &LoggerImpl::worker, this }
+    LoggerImpl(const std::filesystem::path& logfile_, const LogLevel::LogEnum level)
+        : _level{ level }, _ofs{ logfile_, std::ios_base::out | std::ios_base::binary | std::ios_base::app },
+          _tgt{ _ofs }, _runner{ &LoggerImpl::worker, this }
     {
         try
         {
@@ -106,7 +109,10 @@ public:
         }
     }
 
-    explicit LoggerImpl(std::ostream& os_) : _tgt{ os_ }, _runner{ &LoggerImpl::worker, this } {}
+    explicit LoggerImpl(std::ostream& os_, const LogLevel::LogEnum level)
+        : _level{ level }, _tgt{ os_ }, _runner{ &LoggerImpl::worker, this }
+    {
+    }
 
     ~LoggerImpl() { this->stop(); }
 
@@ -137,49 +143,91 @@ public:
     }
 
     void throttleSize(const std::ptrdiff_t size_) { _throttle_size.store(size_); }
+
+    LogLevel::LogEnum getLevel() const { return _level; }
 };
 
 namespace
 {
-std::vector<std::shared_ptr<LoggerImpl>>& logStack()
+class log_stack
 {
-    static std::vector<std::shared_ptr<LoggerImpl>> logs;
-    return logs;
-}
+    mutable std::shared_mutex _lock;
+    std::vector<std::shared_ptr<LoggerImpl>> _items;
 
-void setLoggerFunction(std::weak_ptr<LoggerImpl> wptr_)
-{
-    logger() = [wptr = std::move(wptr_)](const LogLevel::LogEnum level, const std::string_view line)
+    log_stack() = default;
+
+    bool _set_functor()
     {
-        if (auto lptr = wptr.lock()) [[likely]]
+        if (_items.empty())
         {
-            lptr->push(level, std::string{ line.data(), line.size() });
+            return false;
         }
-    };
-}
+        const auto& ptr = _items.back();
+
+        std::weak_ptr<LoggerImpl> wptr{ ptr };
+        logger() = [wptr = std::move(wptr)](const LogLevel::LogEnum level, const std::string_view line)
+        {
+            if (const auto ptr = wptr.lock())
+            {
+                ptr->push(level, std::string{ line.data(), line.size() });
+            }
+        };
+        LogLevel::setLevel(ptr->getLevel());
+        return true;
+    }
+
+public:
+    ~log_stack() = default;
+    log_stack(const log_stack&) = delete;
+    log_stack& operator=(const log_stack&) = delete;
+
+    static log_stack& instance()
+    {
+        static log_stack item;
+        return item;
+    }
+
+    bool push_back(std::shared_ptr<LoggerImpl> log)
+    {
+        std::lock_guard lg{ _lock };
+        _items.emplace_back(std::move(log));
+        return this->_set_functor();
+    }
+
+    bool erase(const std::shared_ptr<LoggerImpl>& log)
+    {
+        std::lock_guard lg{ _lock };
+        if (!_items.empty() && _items.back() == log)
+        {
+            _items.pop_back();
+            return this->_set_functor();
+        }
+        else
+        {
+            _items.erase(std::remove(_items.begin(), _items.end(), log), _items.end());
+            return false;
+        }
+    }
+};
 
 std::atomic_bool active_cout_logger{ false };
 } // namespace
 
-Logger::Logger(std::shared_ptr<LoggerImpl> log, const LogLevel::LogEnum level, bool cout_logger)
-    : _cout_logger{ cout_logger }, _log{ std::move(log) }
+Logger::Logger(std::shared_ptr<LoggerImpl> log, bool cout_logger) : _cout_logger{ cout_logger }, _log{ std::move(log) }
 {
     NSTL2_THROW_EXCEPTION_IF(_cout_logger && active_cout_logger.exchange(true), "cout logger is already active!");
-    auto& logs = logStack();
-    logs.push_back(_log);
-    LogLevel::setLevel(level);
-    setLoggerFunction(_log);
+    log_stack::instance().push_back(_log);
 }
 
-Logger::Logger(const LogLevel::LogEnum level) : Logger{ std::make_shared<LoggerImpl>(std::cout), level, true } {}
+Logger::Logger(const LogLevel::LogEnum level) : Logger{ std::make_shared<LoggerImpl>(std::cout, level), true } {}
 
 Logger::Logger(const std::filesystem::path& tgt_, const LogLevel::LogEnum level)
-    : Logger{ std::make_shared<LoggerImpl>(tgt_), level, false }
+    : Logger{ std::make_shared<LoggerImpl>(tgt_, level), false }
 {
 }
 
 Logger::Logger(std::ostream& os_, const LogLevel::LogEnum level)
-    : Logger{ std::make_shared<LoggerImpl>(os_), level, false }
+    : Logger{ std::make_shared<LoggerImpl>(os_, level), false }
 {
 }
 
@@ -198,6 +246,8 @@ bool Logger::throttleSize(const std::ptrdiff_t size_)
     return false;
 }
 
+LogLevel::LogEnum Logger::getLevel(const LogLevel::LogEnum def) const { return _log ? _log->getLevel() : def; }
+
 void Logger::reset()
 {
     std::shared_ptr<LoggerImpl> log;
@@ -210,20 +260,7 @@ void Logger::reset()
     {
         active_cout_logger.store(false);
     }
-
-    auto& logs = logStack();
-    if (!logs.empty() && logs.back() == log)
-    {
-        logs.pop_back();
-        if (!logs.empty())
-        {
-            setLoggerFunction(logs.back());
-        }
-    }
-    else
-    {
-        logs.erase(std::remove(logs.begin(), logs.end(), log), logs.end());
-    }
+    log_stack::instance().erase(log);
 }
 
 const date::time_zone* LogTimeZone::_parse_zone(const std::string_view zone_) const
@@ -303,11 +340,6 @@ std::ostream& operator<<(std::ostream& os_, const LogTimeZone& zone_)
         os_ << "UTC";
     }
     return os_;
-}
-
-namespace
-{
-constexpr char delimiter = '|';
 }
 
 LoggerFormatter::LoggerFormatter(const LogTimeZone& tz_, const LogLevel::LogEnum level_, const std::string_view file_,

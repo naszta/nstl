@@ -6,7 +6,7 @@
 TEST(HttpClient, ClientTest)
 {
     ASSERT_TRUE(nstl::http::is_ssl_supported());
-    nstl::http::Client client;
+    nstl::http::Client client{ true };
     const auto [code, text] = client.get("https://google.com");
     EXPECT_TRUE(nstl::http::is_http_success(code)) << code << " HTTP code is invalid";
     EXPECT_FALSE(text.empty());

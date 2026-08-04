@@ -23,6 +23,8 @@ namespace date = std::chrono;
 
 namespace nstl::log
 {
+constexpr const char delimiter = '|';
+
 class LogLevel
 {
 public:
@@ -46,7 +48,7 @@ public:
     static std::ostream& toStream(std::ostream& os_, LogEnum level_);
     static std::string_view name(LogEnum level_);
 
-    static void setLevel(LogEnum level);
+    static LogEnum setLevel(LogEnum level);
     static LogEnum getLevel();
     static bool isLevelActive(LogEnum level);
 };
@@ -61,7 +63,7 @@ class Logger
     const bool _cout_logger{ false };
     std::shared_ptr<LoggerImpl> _log;
 
-    Logger(std::shared_ptr<LoggerImpl> log, LogLevel::LogEnum level, bool cout_logger);
+    Logger(std::shared_ptr<LoggerImpl> log, bool cout_logger);
 
 public:
     explicit Logger(LogLevel::LogEnum level = LogLevel::Info);
@@ -74,6 +76,7 @@ public:
     bool throttleSize(std::ptrdiff_t size_);
     size_t size() const;
     void reset();
+    LogLevel::LogEnum getLevel(LogLevel::LogEnum def = LogLevel::Info) const;
 };
 
 class LogTimeZone

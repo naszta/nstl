@@ -11,6 +11,8 @@ namespace
 {
 #ifdef _WIN32
 using sighandler_t = _crt_signal_t;
+#elif defined(__APPLE__)
+using sighandler_t = sig_t;
 #endif
 std::atomic_bool in_use{ false };
 std::atomic_int signal_received{ 0 };

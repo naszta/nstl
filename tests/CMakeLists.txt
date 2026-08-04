@@ -18,6 +18,7 @@ SET(nstltestSrcs
   string_tests.cpp
   datahash_tests.cpp
   env_var_raii_tests.cpp
+  dead_lock_detect_tests.cpp
 )
 
 if (NSTL_USING_CURL)

@@ -2,8 +2,9 @@
 
 A lightweight, header-first C++20 extension library. `nstl` fills in small,
 commonly needed gaps around the standard library — timezone conversion, DNS
-lookups, read-only stream buffers, scope guards, and a few other utilities —
-without pulling in a heavyweight dependency.
+lookups, an HTTP client, file hashing, structured logging, deadlock detection,
+and a handful of RAII helpers (scope guards, temp dirs, env vars) — without
+pulling in a heavyweight dependency.
 
 ## Requirements
 
@@ -46,6 +47,7 @@ docker build -t nstl .
 | [`nstl/range_print.hpp`](nstl/nstl/range_print.hpp) | `range_print` / `range_map_print` — stream a range (or map-like range) to an `ostream` with a custom delimiter, without manually looping. |
 | [`nstl/scope_exit.hpp`](nstl/nstl/scope_exit.hpp) | `nstl::scope_exit` / `on_scope_exit` — RAII guard that runs a callable when the scope exits. |
 | [`nstl/unlock_guard.hpp`](nstl/nstl/unlock_guard.hpp) | `nstl::unlock_guard` — the inverse of `std::lock_guard`: unlocks one or more mutexes for the current scope and re-locks them on destruction. |
+| [`nstl/dead_lock_detect.hpp`](nstl/nstl/dead_lock_detect.hpp) | `nstl::DeadLockChecker` — tracks a set of `DeadLockThreadExecutor` heartbeats (one per monitored thread, `bump()`ed periodically) and invokes an alerter callback if any goes silent past a timeout; `runner()` runs the check loop on the calling thread until `stop()`. `PerfCheck` is a small `steady_clock` stopwatch. |
 | [`nstl/safe_basename.hpp`](nstl/nstl/safe_basename.hpp) | `nstl::safe_basename` / `nstl::safe_basename_view` — returns the filename portion of a path (as a `const char*` or `constexpr string_view`), platform-aware (`\\` on Windows, `/` elsewhere), without allocating. |
 | [`nstl/string.hpp`](nstl/nstl/string.hpp) | `nstl::split_view_func`, `nstl::trim_view` / `left_trim_view` / `right_trim_view` — header-only `string_view` helpers to split on a delimiter (invoking a callback per token) and trim leading/trailing whitespace, without allocating. |
 | [`nstl/temp_dir.hpp`](nstl/nstl/temp_dir.hpp) | `nstl::temp_dir` — RAII wrapper that creates a temporary directory (random, named, or under a given parent) and removes it on destruction. |

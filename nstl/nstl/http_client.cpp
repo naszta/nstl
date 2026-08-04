@@ -1,6 +1,8 @@
 #include "http_client.hpp"
 #include "exception.hpp"
+#include "logging.hpp"
 #include "scope_exit.hpp"
+#include "string.hpp"
 
 #include <curl/curl.h>
 
@@ -29,7 +31,40 @@ size_t writeFunction(const char* ptr, size_t size, size_t nmemb, std::string* da
     }
     return 0;
 }
+
+int my_trace(CURL* /* curl*/, const curl_infotype type, const char* data, size_t size, void* /* userp*/)
+{
+    const std::string_view data_view_base{ data, size };
+    const auto data_view = right_trim_view(data_view_base);
+    switch (type)
+    {
+    case CURLINFO_TEXT:
+        NSTL_INFO("CURL" << log::delimiter << data_view);
+        return 0;
+    case CURLINFO_HEADER_IN:
+        NSTL_INFO("CURL" << log::delimiter << " <= header recv - " << data_view);
+        return 0;
+    case CURLINFO_HEADER_OUT:
+        NSTL_INFO("CURL" << log::delimiter << " => header send - " << data_view);
+        return 0;
+    case CURLINFO_DATA_IN:
+        NSTL_DEBUG("CURL" << log::delimiter << " <= data recv");
+        return 0;
+    case CURLINFO_DATA_OUT:
+        NSTL_DEBUG("CURL" << log::delimiter << " => data send");
+        return 0;
+    case CURLINFO_SSL_DATA_IN:
+        NSTL_DEBUG("CURL" << log::delimiter << " <= ssl data recv");
+        return 0;
+    case CURLINFO_SSL_DATA_OUT:
+        NSTL_DEBUG("CURL" << log::delimiter << " => ssl data send");
+        return 0;
+    default:
+        return 0;
+    }
+}
 } // namespace
+
 void CurlDeleter::operator()(CURL* curl_) const
 {
     if (curl_) [[likely]]
@@ -53,6 +88,7 @@ Client::Client(const bool verbose_) : _curl{ ::curl_easy_init() }
     NSTL2_THROW_EXCEPTION_IF(!_curl, "curl_easy_init failed");
     if (verbose_)
     {
+        NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_DEBUGFUNCTION, my_trace));
         NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_VERBOSE, 1L));
     }
 }
@@ -184,10 +220,7 @@ const std::regex& reg_item()
 }
 } // namespace
 
-bool is_valid_url(const std::string_view url_)
-{
-    return std::regex_match(url_.cbegin(), url_.cend(), reg_item());
-}
+bool is_valid_url(const std::string_view url_) { return std::regex_match(url_.cbegin(), url_.cend(), reg_item()); }
 
 bool is_valid_url(std::string_view url_, view_results& result_)
 {

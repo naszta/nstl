@@ -1,4 +1,5 @@
 #include <nstl/logging.hpp>
+#include <nstl/scope_exit.hpp>
 
 #include <gtest/gtest.h>
 
@@ -29,18 +30,26 @@ TEST(Logging, Multi)
 
     using test_buffer = std::vector<std::pair<nstl::log::LogLevel::LogEnum, std::string>>;
 
-    nstl::log::LogLevel::setLevel(nstl::log::LogLevel::Debug);
+    const auto prev_level = nstl::log::LogLevel::setLevel(nstl::log::LogLevel::Debug);
     const auto target = std::make_shared<test_buffer>();
     std::weak_ptr<test_buffer> wptr{ target };
 
-    nstl::log::logger() =
-        [wptr = std::move(wptr)](const nstl::log::LogLevel::LogEnum level_, const std::string_view line_)
-    {
-        if (const auto ptr = wptr.lock())
+    nstl::log::LogFunc current{ [wptr = std::move(wptr)](const nstl::log::LogLevel::LogEnum level_,
+                                                         const std::string_view line_)
+                                {
+                                    if (const auto ptr = wptr.lock())
+                                    {
+                                        ptr->emplace_back(level_, std::string{ line_.data(), line_.size() });
+                                    }
+                                } };
+
+    std::swap(nstl::log::logger(), current);
+    const auto cleanup = nstl::on_scope_exit(
+        [&current, &prev_level]()
         {
-            ptr->emplace_back(level_, std::string{ line_.data(), line_.size() });
-        }
-    };
+            std::swap(nstl::log::logger(), current);
+            nstl::log::LogLevel::setLevel(prev_level);
+        });
 
     NSTL_DEBUG(debug_log);
     NSTL_INFO(info_log);

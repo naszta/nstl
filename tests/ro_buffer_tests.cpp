@@ -2,8 +2,16 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <istream>
 #include <string_view>
+
+#ifdef NSTL_USING_HH_DATE
+#include <date/date.h>
+#include <date/tz.h>
+#else
+namespace date = std::chrono;
+#endif
 
 TEST(RoBuffer, IntParser)
 {
@@ -54,4 +62,21 @@ TEST(RoBuffer, WideContent)
     EXPECT_FALSE(stream.fail());
     EXPECT_EQ(value, 123456);
     EXPECT_EQ(buffer.content(), data);
+}
+
+TEST(RoBuffer, TimeStamp)
+{
+    const std::string_view stamp_view{ "2026-08-04T15:02:00.125Z" };
+    nstl::ro_buffer buffer{ stamp_view };
+    std::istream stream{ &buffer };
+    date::sys_time<std::chrono::milliseconds> target;
+    if (stream >> date::parse("%FT%TZ", target))
+    {
+        const auto epoch_millis = target.time_since_epoch().count();
+        EXPECT_EQ(epoch_millis, 1785855720125LL);
+    }
+    else
+    {
+        ADD_FAILURE() << stamp_view << " cannot be parsed";
+    }
 }

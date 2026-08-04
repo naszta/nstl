@@ -19,6 +19,7 @@ SET(nstllibHdrs
   nstl/ro_buffer.hpp
   nstl/safe_basename.hpp
   nstl/scope_exit.hpp
+  nstl/signal_barrier.hpp
   nstl/string.hpp
   nstl/temp_dir.hpp
   nstl/unlock_guard.hpp
@@ -33,6 +34,7 @@ SET(nstllibSrcs
   nstl/exception.cpp
   nstl/global_init.cpp
   nstl/logging.cpp
+  nstl/signal_barrier.cpp
   nstl/temp_dir.cpp
 )
 

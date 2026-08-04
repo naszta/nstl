@@ -17,6 +17,10 @@ public:
     scope_exit& operator=(const scope_exit&) = delete;
 
     void reset() { _func = std::function<void()>{}; }
+    void swap(std::function<void()>& func_) { _func.swap(func_); }
+    bool empty() const { return !_func; }
+
+    explicit operator bool() const { return !this->empty(); }
 
     ~scope_exit()
     {

@@ -20,17 +20,15 @@ struct CurlDeleter
 {
     void operator()(CURL* curl_) const;
 };
-
 using curl_ptr = std::unique_ptr<CURL, CurlDeleter>;
 
 struct CurlListDeleter
 {
     void operator()(curl_slist* ptr_) const;
 };
-
 using curl_headers_ptr = std::unique_ptr<curl_slist, CurlListDeleter>;
 
-// success between 200 <= and < 300
+// RFC 7231: 200 <= code < 300 is good
 bool is_http_success(std::int32_t status_code_);
 // is SSL supported
 bool is_ssl_supported();
@@ -67,7 +65,7 @@ public:
 
 namespace nstl::url
 {
-enum ResIdx : std::uint32_t
+enum ResIdx : std::uint16_t
 {
     Protocol = 2,
     Hostname = 4,

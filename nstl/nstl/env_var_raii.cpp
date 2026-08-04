@@ -29,11 +29,6 @@ bool loc_unsetenv(const char* name_)
 
 namespace nstl
 {
-env_var_raii::env_var_raii(const char* name_, const char* value_)
-    : env_var_raii{ name_ ? std::string{ name_ } : std::string{}, value_ }
-{
-}
-
 env_var_raii::env_var_raii(std::string name_, const char* value_) : _name{ std::move(name_) }
 {
     NSTL2_THROW_EXCEPTION_IF(_name.empty(), "enivronment variable name cannot be nullptr");
@@ -45,15 +40,23 @@ env_var_raii::env_var_raii(std::string name_, const char* value_) : _name{ std::
     {
         NSTL2_THROW_EXCEPTION_IF(!loc_setenv(_name.c_str(), value_), _name << " enivronment variable cannot be set");
     }
-    else
+    else if (_prev.has_value())
     {
         NSTL2_THROW_EXCEPTION_IF(!loc_unsetenv(_name.c_str()), _name << " cannot be removed");
+    }
+    else
+    {
+        _noop = true;
     }
 }
 
 env_var_raii::~env_var_raii()
 {
-    if (_prev)
+    if (_noop)
+    {
+        return;
+    }
+    else if (_prev)
     {
         loc_setenv(_name.c_str(), _prev->c_str());
     }

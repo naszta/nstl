@@ -6,8 +6,6 @@
 
 #include <cstring>
 
-#include <regex>
-
 #define NSTL_CURL_CHECK(command)                                                               \
     do                                                                                         \
     {                                                                                          \
@@ -18,7 +16,7 @@
         }                                                                                      \
     } while (false)
 
-namespace nstl
+namespace nstl::http
 {
 namespace
 {
@@ -48,9 +46,10 @@ void CurlListDeleter::operator()(curl_slist* ptr_) const
     }
 }
 
-HttpClient::HttpClient(const bool verbose_) : _curl{ ::curl_easy_init() }
+Client::Client(const bool verbose_) : _curl{ ::curl_easy_init() }
 {
     static_assert(CURL_ERROR_SIZE <= error_size, "Error size should be at least CURL_ERROR_SIZE");
+    std::memset(_error.data(), 0, _error.size());
     NSTL2_THROW_EXCEPTION_IF(!_curl, "curl_easy_init failed");
     if (verbose_)
     {
@@ -58,23 +57,17 @@ HttpClient::HttpClient(const bool verbose_) : _curl{ ::curl_easy_init() }
     }
 }
 
-HttpClient::~HttpClient() = default;
+Client::~Client() = default;
 
-bool HttpClient::is_http_success(const std::int32_t status_code_) { return 200 <= status_code_ && status_code_ < 300; }
+bool is_http_success(const std::int32_t status_code_) { return 200 <= status_code_ && status_code_ < 300; }
 
-bool HttpClient::is_valid_url(const std::string_view url_)
+bool is_ssl_supported()
 {
-    static const std::regex url_reg{ R"(^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?)" };
-    return std::regex_match(url_.cbegin(), url_.cend(), url_reg);
-}
-
-bool HttpClient::is_ssl_supported()
-{
-    const auto version =::curl_version_info(CURLVERSION_NOW);
+    const auto version = ::curl_version_info(CURLVERSION_NOW);
     return version->features & CURL_VERSION_SSL;
 }
 
-void HttpClient::_common(const char* url_, const bool verify_)
+void Client::_common(const char* url_, const bool verify_)
 {
     NSTL2_THROW_EXCEPTION_IF(!url_, "URL pointer is nullptr!");
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_NOSIGNAL, 1L));
@@ -90,7 +83,7 @@ void HttpClient::_common(const char* url_, const bool verify_)
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_FOLLOWLOCATION, 1L));
 }
 
-std::pair<std::int32_t, std::string> HttpClient::get(const char* url_, const bool verify_)
+std::pair<std::int32_t, std::string> Client::get(const char* url_, const bool verify_)
 {
     this->_common(url_, verify_);
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_HTTPGET, 1L));
@@ -102,13 +95,12 @@ std::pair<std::int32_t, std::string> HttpClient::get(const char* url_, const boo
     return std::make_pair(static_cast<std::int32_t>(http_code), std::move(retval));
 }
 
-std::pair<std::int32_t, std::string> HttpClient::post(const char* url_, const bool verify_)
+std::pair<std::int32_t, std::string> Client::post(const char* url_, const bool verify_)
 {
     return this->post(url_, std::string_view{}, verify_);
 }
 
-std::pair<std::int32_t, std::string> HttpClient::post(const char* url_, const std::string_view data_,
-                                                      const bool verify_)
+std::pair<std::int32_t, std::string> Client::post(const char* url_, const std::string_view data_, const bool verify_)
 {
     this->_common(url_, verify_);
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_POST, 1L));
@@ -126,7 +118,7 @@ std::pair<std::int32_t, std::string> HttpClient::post(const char* url_, const st
     return std::make_pair(static_cast<std::int32_t>(http_code), std::move(retval));
 }
 
-bool HttpClient::add_header(const char* header_)
+bool Client::add_header(const char* header_)
 {
     NSTL2_THROW_EXCEPTION_IF(!header_, "header is nullptr");
     const auto chunk = ::curl_slist_append(_headers.get(), header_);
@@ -136,7 +128,7 @@ bool HttpClient::add_header(const char* header_)
     return true;
 }
 
-std::string HttpClient::url_encode(const std::string_view data_) const
+std::string Client::url_encode(const std::string_view data_) const
 {
     if (data_.empty())
     {
@@ -155,7 +147,7 @@ std::string HttpClient::url_encode(const std::string_view data_) const
     return std::string{ encoded };
 }
 
-std::string HttpClient::url_decode(const std::string_view data_) const
+std::string Client::url_decode(const std::string_view data_) const
 {
     if (data_.empty())
     {
@@ -175,7 +167,31 @@ std::string HttpClient::url_decode(const std::string_view data_) const
     return std::string{ decoded, static_cast<size_t>(out_len) };
 }
 
-std::string_view HttpClient::error_view() const { return _error.data(); }
+std::string_view Client::error_view() const { return _error.data(); }
 
-void HttpClient::reset() { curl_easy_reset(_curl.get()); }
-} // namespace nstl
+void Client::reset() { curl_easy_reset(_curl.get()); }
+
+} // namespace nstl::http
+
+namespace nstl::url
+{
+namespace
+{
+const std::regex& reg_item()
+{
+    static const std::regex url_reg{ R"(^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?)" };
+    return url_reg;
+}
+} // namespace
+
+bool is_valid_url(const std::string_view url_)
+{
+    return std::regex_match(url_.cbegin(), url_.cend(), reg_item());
+}
+
+bool is_valid_url(std::string_view url_, view_results& result_)
+{
+    return std::regex_match(url_.cbegin(), url_.cend(), result_, reg_item());
+}
+
+} // namespace nstl::url

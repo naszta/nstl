@@ -11,9 +11,9 @@ class env_var_raii
 {
     std::string _name;
     std::optional<std::string> _prev;
+    bool _noop{ false };
 
 public:
-    env_var_raii(const char* name_, const char* value_);
     env_var_raii(std::string name_, const char* value_);
     ~env_var_raii();
 

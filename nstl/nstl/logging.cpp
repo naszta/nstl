@@ -7,22 +7,18 @@
 #include <array>
 #include <atomic>
 #include <fstream>
+#include <format>
+#include <iterator>
 #include <limits>
 #include <iostream>
 
 #include <oneapi/tbb/concurrent_queue.h>
 
-#ifdef NSTL_USING_HH_DATE
-#include <date/tz.h>
-#endif
-
 namespace nstl::log
 {
 namespace
 {
-using LogLevelAtom = std::atomic<LogLevel::LogInt>;
-
-LogLevelAtom current_level{ static_cast<LogLevel::LogInt>(LogLevel::Info) };
+std::atomic<LogLevel::LogInt> current_level{ static_cast<LogLevel::LogInt>(LogLevel::Info) };
 
 constexpr std::array<std::string_view, 5> log_levels{ "DEBUG", "INFO", "WARNING", "ERROR", "TERMINATE" };
 } // namespace
@@ -308,7 +304,7 @@ std::ostringstream& LogTimeZone::printStamp(std::ostringstream& oss_) const
 #ifdef NSTL_USING_HH_DATE
         date::to_stream(oss_, "%FT%T%z", zd);
 #else
-        oss_ << std::format("{0:%F}T{0:%T%z}", zd);
+        std::format_to(std::ostream_iterator<char>{ oss_ }, "{:%FT%T%z}", zd);
 #endif
     }
     else
@@ -316,7 +312,7 @@ std::ostringstream& LogTimeZone::printStamp(std::ostringstream& oss_) const
 #ifdef NSTL_USING_HH_DATE
         date::to_stream(oss_, "%FT%TZ", utc_now);
 #else
-        oss_ << std::format("{0:%F}T{0:%T}Z", utc_now);
+        std::format_to(std::ostream_iterator<char>{ oss_ }, "{:%FT%TZ}", utc_now);
 #endif
     }
     return oss_;

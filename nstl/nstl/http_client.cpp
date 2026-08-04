@@ -86,6 +86,8 @@ Client::Client(const bool verbose_) : _curl{ ::curl_easy_init() }
     static_assert(CURL_ERROR_SIZE <= error_size, "Error size should be at least CURL_ERROR_SIZE");
     std::memset(_error.data(), 0, _error.size());
     NSTL2_THROW_EXCEPTION_IF(!_curl, "curl_easy_init failed");
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_NOSIGNAL, 1L)); // no signal
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_ERRORBUFFER, _error.data())); // error buffer
     if (verbose_)
     {
         NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_DEBUGFUNCTION, my_trace));
@@ -106,8 +108,6 @@ bool is_ssl_supported()
 void Client::_common(const char* url_, const bool verify_)
 {
     NSTL2_THROW_EXCEPTION_IF(!url_, "URL pointer is nullptr!");
-    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_NOSIGNAL, 1L));
-    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_ERRORBUFFER, _error.data()));
     _error[0] = '\0';
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_WRITEFUNCTION, writeFunction));
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_URL, url_));

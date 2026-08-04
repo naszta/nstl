@@ -49,8 +49,8 @@ TEST(CTimeZone, Basic)
     const auto zt0_str = date::format("%FT%T%z", zt0);
     const auto zt1_str = date::format("%FT%T%z", zt1);
 #else
-    const auto zt0_str = std::format("{0:%F}T{0:%T%z}", zt0);
-    const auto zt1_str = std::format("{0:%F}T{0:%T%z}", zt1);
+    const auto zt0_str = std::format("{:%FT%T%z}", zt0);
+    const auto zt1_str = std::format("{:%FT%T%z}", zt1);
 #endif
 
     EXPECT_EQ(zt0_str, zt1_str);

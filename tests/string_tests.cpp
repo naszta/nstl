@@ -22,19 +22,17 @@ TEST(String, Split)
     const std::string_view source1{ "value3,,value0,,value1,,value2" };
 
     std::vector<std::string> items;
+    const auto inserter = [&items](const std::string_view item_) { items.emplace_back(item_.data(), item_.size()); };
     items.reserve(10);
 
-    nstl::split_view_func(
-        source0, ',', [&items](const std::string_view item_) { items.emplace_back(item_.data(), item_.size()); }, true);
+    nstl::split_view_func(source0, ',', inserter, true);
 
     ASSERT_EQ(items.size(), 2U);
     EXPECT_EQ(items.front(), "value0");
     EXPECT_EQ(items.back(), "value1");
 
     items.clear();
-    nstl::split_view_func(
-        source0, ',', [&items](const std::string_view item_) { items.emplace_back(item_.data(), item_.size()); },
-        false);
+    nstl::split_view_func(source0, ',', inserter, false);
 
     ASSERT_EQ(items.size(), 7U);
     EXPECT_TRUE(items[0].empty());
@@ -46,17 +44,14 @@ TEST(String, Split)
     EXPECT_TRUE(items[6].empty());
 
     items.clear();
-    nstl::split_view_func(
-        source1, ',', [&items](const std::string_view item_) { items.emplace_back(item_.data(), item_.size()); }, true);
+    nstl::split_view_func(source1, ',', inserter, true);
 
     ASSERT_EQ(items.size(), 4U);
     EXPECT_EQ(items.front(), "value3");
     EXPECT_EQ(items.back(), "value2");
 
     items.clear();
-    nstl::split_view_func(
-        source1, ',', [&items](const std::string_view item_) { items.emplace_back(item_.data(), item_.size()); },
-        false);
+    nstl::split_view_func(source1, ',', inserter, false);
 
     ASSERT_EQ(items.size(), 7U);
     EXPECT_EQ(items[0], "value3");

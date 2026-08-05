@@ -1,4 +1,11 @@
 cmake_minimum_required(VERSION 3.28)
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
+if (POLICY CMP0148)
+  cmake_policy(SET CMP0148 NEW)
+endif()
+
 PROJECT(nstlroot)
 
 SET(nstlroot_MAJOR_VERSION 0)
@@ -23,23 +30,26 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(BOOST_ENABLE_CMAKE ON)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
 set(NSTL_USING_CURL ON CACHE BOOL "Adding curl module")
 
-if(POLICY CMP0167)
-  cmake_policy(SET CMP0167 NEW)
-endif()
-
-# Boost
-find_package(Boost REQUIRED headers program_options)
-
 include(FetchContent)
+
+FetchContent_Declare(
+  Boost
+  GIT_REPOSITORY https://github.com/boostorg/boost.git
+  GIT_TAG boost-1.91.0-1
+  GIT_SHALLOW TRUE
+  SYSTEM
+  EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(Boost)
 
 if (NSTL_USING_CURL)
   set(ENABLE_CURL_MANUAL OFF CACHE BOOL "" FORCE)
   set(BUILD_LIBCURL_DOCS OFF CACHE BOOL "" FORCE)
   if (WIN32)
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
     set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
     set(CURL_USE_LIBPSL OFF CACHE BOOL "" FORCE)
     set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
@@ -73,11 +83,27 @@ if (NSTL_USING_OPENSSL)
 endif()
 
 # tbb
-find_package(TBB REQUIRED)
+FetchContent_Declare(
+  TBB
+  GIT_REPOSITORY https://github.com/uxlfoundation/oneTBB.git
+  GIT_TAG v2023.1.0
+  GIT_SHALLOW TRUE
+  SYSTEM
+  EXCLUDE_FROM_ALL
+)
 set(TBB_TEST OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(TBB)
 
 # gtest
-find_package(GTest REQUIRED)
+FetchContent_Declare(
+  GTest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG v1.17.0
+  GIT_SHALLOW TRUE
+  SYSTEM
+  EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(GTest)
 
 # hh date
 if (NSTL_USING_HH_DATE)

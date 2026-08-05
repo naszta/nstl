@@ -59,7 +59,7 @@ if (NSTL_USING_CURL)
 endif()
 
 set(nstllib_public_dependencies
-  Boost::headers
+  Boost::headers Boost::serialization
 )
 
 if (NSTL_USING_HH_DATE)

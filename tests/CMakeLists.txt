@@ -7,6 +7,7 @@ INCLUDE_DIRECTORIES(
 SET(nstltestSrcs
   main.cpp
   c_timezone_tests.cpp
+  exception_tests.cpp
   logging_tests.cpp
   range_print_tests.cpp
   ro_buffer_tests.cpp

@@ -15,6 +15,45 @@ TEST(DnsTools, Hostname)
     EXPECT_FALSE(hostname.empty());
 }
 
+TEST(DnsTools, NullptrThrows)
+{
+    EXPECT_THROW(nstl::net::canonical_name(static_cast<const char*>(nullptr)), std::exception);
+    EXPECT_THROW(nstl::net::mx_name(static_cast<const char*>(nullptr)), std::exception);
+    EXPECT_THROW(nstl::net::txt_name(static_cast<const char*>(nullptr)), std::exception);
+    EXPECT_THROW(nstl::net::c_name(static_cast<const char*>(nullptr)), std::exception);
+    EXPECT_THROW(nstl::net::srv_name(static_cast<const char*>(nullptr)), std::exception);
+}
+
+TEST(DnsTools, NonResolvingNameReturnsNullopt)
+{
+    // ".invalid" is reserved by RFC 2606 to never resolve, so this is deterministic without depending
+    // on any live infrastructure.
+    constexpr const char* unresolvable = "this-host-should-never-exist.invalid";
+    // mx_name/txt_name/c_name/srv_name are backed by res_nquery and report "no such record" as
+    // nullopt.
+    EXPECT_FALSE(nstl::net::mx_name(unresolvable).has_value());
+    EXPECT_FALSE(nstl::net::txt_name(unresolvable).has_value());
+    EXPECT_FALSE(nstl::net::c_name(unresolvable).has_value());
+    EXPECT_FALSE(nstl::net::srv_name(unresolvable).has_value());
+}
+
+TEST(DnsTools, CanonicalNameUnresolvableThrows)
+{
+    // Unlike the res_nquery-backed lookups above, canonical_name() is backed by getaddrinfo(), which
+    // reports resolution failure as an error rather than an empty result, so it throws instead of
+    // returning nullopt.
+    constexpr const char* unresolvable = "this-host-should-never-exist.invalid";
+    EXPECT_THROW(nstl::net::canonical_name(unresolvable), std::exception);
+}
+
+TEST(DnsTools, StringOverloads)
+{
+    const std::string name{ "media.naszta.hu" };
+    const auto cname = nstl::net::canonical_name(name);
+    ASSERT_TRUE(cname.has_value());
+    EXPECT_EQ(cname.value(), "harmonia.bysh.me");
+}
+
 TEST(DnsTools, MxName)
 {
     const auto mxname = nstl::net::mx_name("naszta.com");

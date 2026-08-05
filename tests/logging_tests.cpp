@@ -1,8 +1,10 @@
 #include <nstl/logging.hpp>
 #include <nstl/scope_exit.hpp>
+#include <nstl/temp_dir.hpp>
 
 #include <gtest/gtest.h>
 
+#include <fstream>
 #include <thread>
 
 TEST(Logging, Test)
@@ -73,4 +75,94 @@ TEST(Logging, Levels)
     EXPECT_EQ(nstl::log::LogLevel::parseLevel("ERROR"), nstl::log::LogLevel::Error);
 
     EXPECT_THROW(nstl::log::LogLevel::parseLevel("Non sense"), std::exception);
+}
+
+TEST(Logging, NameInvalidLevelThrows)
+{
+    EXPECT_THROW(nstl::log::LogLevel::name(static_cast<nstl::log::LogLevel::LogEnum>(-1)), std::exception);
+    EXPECT_THROW(nstl::log::LogLevel::name(static_cast<nstl::log::LogLevel::LogEnum>(99)), std::exception);
+}
+
+TEST(Logging, FileBackedLogger)
+{
+    const nstl::temp_dir dir;
+    const auto log_path = dir / "test.log";
+    const std::string_view expected{ "Testing file logger" };
+    {
+        nstl::log::Logger logger{ log_path };
+        NSTL_INFO(expected);
+        logger.reset();
+    }
+
+    std::ifstream ifs{ log_path };
+    ASSERT_TRUE(ifs.good());
+    std::string content{ std::istreambuf_iterator<char>{ ifs }, std::istreambuf_iterator<char>{} };
+    EXPECT_TRUE(content.ends_with(std::string{ expected } + "\n")) << content;
+}
+
+TEST(Logging, FileBackedLoggerCannotOpenThrows)
+{
+    const nstl::temp_dir dir;
+    const auto bad_path = dir / "no_such_subdir" / "test.log";
+    EXPECT_THROW(nstl::log::Logger logger(bad_path), std::exception);
+}
+
+TEST(Logging, ThrottleSizeNegativeThrows)
+{
+    std::ostringstream target;
+    nstl::log::Logger logger{ target };
+    EXPECT_THROW(logger.throttleSize(-1), std::exception);
+}
+
+TEST(Logging, ThrottleSizeAndGetLevel)
+{
+    std::ostringstream target;
+    nstl::log::Logger logger{ target, nstl::log::LogLevel::Warning };
+    EXPECT_TRUE(logger.throttleSize(1024));
+    EXPECT_EQ(logger.getLevel(), nstl::log::LogLevel::Warning);
+
+    logger.reset();
+    // after reset() the logger holds no LoggerImpl, so getLevel()/throttleSize() fall back to defaults.
+    EXPECT_EQ(logger.getLevel(nstl::log::LogLevel::Error), nstl::log::LogLevel::Error);
+    EXPECT_FALSE(logger.throttleSize(1024));
+}
+
+TEST(Logging, LogTimeZoneDefaultsToUtc)
+{
+    nstl::log::LogTimeZone tz;
+    std::ostringstream oss;
+    oss << tz;
+    EXPECT_EQ(oss.str(), "UTC");
+}
+
+TEST(Logging, LogTimeZoneCurrent)
+{
+    nstl::log::LogTimeZone tz;
+    tz.setZone(std::string{});
+    std::ostringstream oss;
+    oss << tz;
+    EXPECT_EQ(oss.str(), "current");
+}
+
+TEST(Logging, LogTimeZoneNamed)
+{
+    nstl::log::LogTimeZone tz;
+    tz.setZone(std::string{ "UTC" });
+    std::ostringstream oss;
+    oss << tz;
+    EXPECT_EQ(oss.str(), "UTC");
+}
+
+TEST(Logging, LogTimeZoneInvalidNameThrows)
+{
+    nstl::log::LogTimeZone tz;
+    EXPECT_THROW(tz.setZone(std::string{ "Not/AZone" }), std::exception);
+}
+
+TEST(Logging, LogTimeZonePrintStampNotEmpty)
+{
+    nstl::log::LogTimeZone tz;
+    std::ostringstream oss;
+    tz.printStamp(oss);
+    EXPECT_FALSE(oss.str().empty());
 }

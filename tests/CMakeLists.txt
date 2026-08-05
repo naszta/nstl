@@ -21,6 +21,7 @@ SET(nstltestSrcs
   dead_lock_detect_tests.cpp
   macros_tests.cpp
   signal_barrier_tests.cpp
+  memory_tests.cpp
 )
 
 if (NSTL_USING_CURL)

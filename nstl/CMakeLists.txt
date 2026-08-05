@@ -5,6 +5,7 @@ if (NSTL_USING_OPENSSL)
 endif()
 
 SET(nstllibHdrs
+  nstl/base64.hpp
   nstl/c_timezone.hpp
   nstl/datahash_fwd.hpp
   nstl/datahash.hpp
@@ -57,11 +58,13 @@ if (NSTL_USING_CURL)
   list(APPEND nstllib_private_dependencies CURL::libcurl)
 endif()
 
+set(nstllib_public_dependencies
+  Boost::headers
+)
+
 if (NSTL_USING_HH_DATE)
-  set(nstllib_public_dependencies date::date date::date-tz)
+  list(APPEND nstllib_public_dependencies date::date date::date-tz)
   add_compile_definitions(NSTL_USING_HH_DATE)
-else()
-  set(nstllib_public_dependencies)
 endif()
 
 if (NSTL_USING_OPENSSL)

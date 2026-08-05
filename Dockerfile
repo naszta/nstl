@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN --mount=type=cache,sharing=locked,target=/var/cache/apt \
     apt-get update && \
-    apt-get install -y build-essential git cmake ccache ninja-build libtbb-dev libgtest-dev googletest libssl-dev libcurl4-openssl-dev curl ca-certificates && \
+    apt-get install -y build-essential git cmake ccache ninja-build libtbb-dev libgtest-dev googletest libssl-dev libboost-all-dev libcurl4-openssl-dev curl ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src

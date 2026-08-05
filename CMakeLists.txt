@@ -22,8 +22,16 @@ ENDIF(EXISTS ${nstlroot_SOURCE_DIR}/.git)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(BOOST_ENABLE_CMAKE ON)
 
 set(NSTL_USING_CURL ON CACHE BOOL "Adding curl module")
+
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
+
+# Boost
+find_package(Boost REQUIRED headers program_options)
 
 include(FetchContent)
 

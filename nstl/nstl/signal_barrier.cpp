@@ -25,9 +25,10 @@ sighandler_t int_quit = SIG_DFL;
 #endif
 } // namespace
 
-SignalBarrier::SignalBarrier()
+SignalBarrier::SignalBarrier(std::chrono::nanoseconds period_) : _period{period_}
 {
     static_assert(std::atomic_int::is_always_lock_free, "signal_received must be atomic");
+    NSTL2_THROW_EXCEPTION_IF(_period <= std::chrono::nanoseconds::zero(), "period time must be greater than 0");
     NSTL2_THROW_EXCEPTION_IF(in_use.exchange(true), "SignalBarrier is already in use");
     int_hndlr = std::signal(SIGINT, signal_receiver);
     int_term = std::signal(SIGTERM, signal_receiver);
@@ -51,7 +52,7 @@ int SignalBarrier::wait()
     int value = signal_received.exchange(0, std::memory_order::relaxed);
     while (value == 0)
     {
-        std::this_thread::yield();
+        std::this_thread::sleep_for(_period);
         value = signal_received.exchange(0, std::memory_order::relaxed);
     }
     return value;
@@ -68,7 +69,7 @@ std::optional<int> SignalBarrier::wait_for(const std::chrono::nanoseconds& to_)
 
     while (std::chrono::steady_clock::now() - start < to_)
     {
-        std::this_thread::yield();
+        std::this_thread::sleep_for(_period);
         if (auto value = signal_received.exchange(0, std::memory_order::relaxed); value != 0)
         {
             return value;

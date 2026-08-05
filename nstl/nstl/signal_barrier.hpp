@@ -6,9 +6,12 @@
 
 namespace nstl
 {
-struct SignalBarrier
+class SignalBarrier
 {
-    SignalBarrier();
+    const std::chrono::nanoseconds _period;
+
+public:
+    SignalBarrier(std::chrono::nanoseconds period_ = std::chrono::milliseconds{10});
     ~SignalBarrier();
 
     SignalBarrier(const SignalBarrier&) = delete;

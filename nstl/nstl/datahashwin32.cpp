@@ -32,8 +32,8 @@ struct ThreadProvider
 {
     ThreadProvider()
     {
-        NSTL2_THROW_EXCEPTION_IF(!::CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT),
-                                 "CryptAcquireContext failed: " << ::GetLastError());
+        NSTL2_THROW_EXCEPTION_IF(!::CryptAcquireContextA(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT),
+                                 "CryptAcquireContextA failed: " << ::GetLastError());
     }
     ~ThreadProvider()
     {
@@ -66,6 +66,7 @@ class HasherWin32 final : public Hasher
     {
         thread_local const ThreadProvider context;
         const auto algoid = translateAlgoId(_type);
+        NSTL2_THROW_EXCEPTION_IF(_hHash, "Reinit of _hHash");
         NSTL2_THROW_EXCEPTION_IF(!::CryptCreateHash(context.hProv, algoid, 0, 0, &_hHash),
                                  "CryptCreateHash failed: " << ::GetLastError());
     }

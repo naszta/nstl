@@ -33,7 +33,10 @@ public:
     {
     }
 
-    constexpr observer_ptr(const std::unique_ptr<Type>& other) noexcept : _ptr{ other.get() } {}
+    template <class Deleter = std::default_delete<Type>>
+    constexpr observer_ptr(const std::unique_ptr<Type, Deleter>& other) noexcept : _ptr{ other.get() }
+    {
+    }
     constexpr observer_ptr(const std::shared_ptr<Type>& other) noexcept : _ptr{ other.get() } {}
 
     constexpr observer_ptr(const observer_ptr&) noexcept = default;

@@ -12,8 +12,11 @@
 #define file_open _wopen
 #else
 #include <unistd.h>
-#define O_BINARY 0
 #define file_open open
+#endif
+
+#ifndef O_BINARY
+#define O_BINARY 0
 #endif
 
 namespace nstl
@@ -24,7 +27,7 @@ Hasher::~Hasher() = default;
 namespace
 {
 HashValue hash_file_impl(const std::filesystem::path& path_, const HashType type_, char* buffer_,
-                         const size_t buffersize_)
+                         const unsigned int buffersize_)
 {
     NSTL2_THROW_EXCEPTION_IF(path_.empty(), "filename is empty");
     const auto file_handler = ::file_open(path_.c_str(), O_RDONLY | O_BINARY);
@@ -35,7 +38,7 @@ HashValue hash_file_impl(const std::filesystem::path& path_, const HashType type
     int read_bytes = 1;
     while (0 < read_bytes)
     {
-        read_bytes = ::read(file_handler, buffer_, static_cast<unsigned int>(buffersize_));
+        read_bytes = ::read(file_handler, buffer_, buffersize_);
         if (0 < read_bytes)
         {
             hasher->add(buffer_, static_cast<size_t>(read_bytes));
@@ -53,28 +56,44 @@ HashValue hash_file(const std::filesystem::path& path_, const HashType type_, co
     NSTL2_THROW_EXCEPTION_IF(buffersize_ == 0, "Buffer size must not be 0");
     std::vector<char> buffer;
     buffer.resize(buffersize_);
-    return hash_file_impl(path_, type_, buffer.data(), buffer.size());
+    return hash_file_impl(path_, type_, buffer.data(), static_cast<unsigned int>(buffer.size()));
 }
 
 #ifdef __cpp_lib_span
 HashValue hash_file(const std::filesystem::path& path_, const std::span<char>& buffer_, const HashType type_)
 {
     NSTL2_THROW_EXCEPTION_IF(buffer_.empty(), "Span is empty!");
-    return hash_file_impl(path_, type_, buffer_.data(), buffer_.size());
+    return hash_file_impl(path_, type_, buffer_.data(), static_cast<unsigned int>(buffer_.size()));
 }
 #endif
 
-std::string hash_to_hex(const HashValue& hash_)
+namespace
 {
-    static constexpr const char* digits = "0123456789ABCDEF";
-    std::string retval;
+template <class CharT, class TraitsT = std::char_traits<CharT>>
+std::basic_string<CharT, TraitsT> hash_to_hex_t(const HashValue& hash_,
+                                                const std::basic_string_view<CharT, TraitsT> digits_)
+{
+    std::basic_string<CharT, TraitsT> retval;
     retval.reserve(hash_.size() * 2);
     for (auto b : hash_)
     {
-        retval.push_back(digits[b >> 4]);
-        retval.push_back(digits[b & 0x0F]);
+        retval.push_back(digits_[b >> 4]);
+        retval.push_back(digits_[b & 0x0F]);
     }
     return retval;
+}
+} // namespace
+
+std::string hash_to_hex(const HashValue& hash_)
+{
+    constexpr const std::string_view digits{ "0123456789ABCDEF" };
+    return hash_to_hex_t(hash_, digits);
+}
+
+std::wstring whash_to_hex(const HashValue& hash_)
+{
+    constexpr const std::wstring_view digits{ L"0123456789ABCDEF" };
+    return hash_to_hex_t(hash_, digits);
 }
 
 std::optional<HashType> parseHashType(const std::string_view name_)

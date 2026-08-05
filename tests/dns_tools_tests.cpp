@@ -35,15 +35,7 @@ TEST(DnsTools, NonResolvingNameReturnsNullopt)
     EXPECT_FALSE(nstl::net::txt_name(unresolvable).has_value());
     EXPECT_FALSE(nstl::net::c_name(unresolvable).has_value());
     EXPECT_FALSE(nstl::net::srv_name(unresolvable).has_value());
-}
-
-TEST(DnsTools, CanonicalNameUnresolvableThrows)
-{
-    // Unlike the res_nquery-backed lookups above, canonical_name() is backed by getaddrinfo(), which
-    // reports resolution failure as an error rather than an empty result, so it throws instead of
-    // returning nullopt.
-    constexpr const char* unresolvable = "this-host-should-never-exist.invalid";
-    EXPECT_THROW(nstl::net::canonical_name(unresolvable), std::exception);
+    EXPECT_FALSE(nstl::net::canonical_name(unresolvable).has_value());
 }
 
 TEST(DnsTools, StringOverloads)

@@ -7,6 +7,7 @@
 #include <curl/curl.h>
 
 #include <cstring>
+#include <utility>
 
 #define NSTL_CURL_CHECK(command)                                                               \
     do                                                                                         \
@@ -67,18 +68,12 @@ int my_trace(CURL* /* curl*/, const curl_infotype type, const char* data, size_t
 
 void CurlDeleter::operator()(CURL* curl_) const
 {
-    if (curl_) [[likely]]
-    {
-        ::curl_easy_cleanup(curl_);
-    }
+    ::curl_easy_cleanup(curl_);
 }
 
 void CurlListDeleter::operator()(curl_slist* ptr_) const
 {
-    if (ptr_)
-    {
-        ::curl_slist_free_all(ptr_);
-    }
+    ::curl_slist_free_all(ptr_);
 }
 
 Client::Client(const bool verbose_) : _curl{ ::curl_easy_init() }
@@ -157,10 +152,10 @@ std::pair<std::int32_t, std::string> Client::post(const char* url_, const std::s
 bool Client::add_header(const char* header_)
 {
     NSTL2_THROW_EXCEPTION_IF(!header_, "header is nullptr");
-    const auto chunk = ::curl_slist_append(_headers.get(), header_);
+    auto chunk = ::curl_slist_append(_headers.get(), header_);
     NSTL2_THROW_EXCEPTION_IF(!chunk, "curl_slist_append failed");
     _headers.release();
-    _headers.reset(chunk);
+    _headers.reset(std::exchange(chunk, nullptr));
     return true;
 }
 
@@ -203,9 +198,10 @@ std::string Client::url_decode(const std::string_view data_) const
     return std::string{ decoded, static_cast<size_t>(out_len) };
 }
 
-std::string_view Client::error_view() const { return _error.data(); }
+std::string_view Client::error_view() const { return std::string_view{ _error.data(), strnlen(_error.data(), _error.size()) }; }
 
-void Client::reset() { curl_easy_reset(_curl.get()); }
+void Client::reset() { ::curl_easy_reset(_curl.get()); }
+void Client::reset_hdrs() { _headers.reset(); }
 
 } // namespace nstl::http
 

@@ -29,11 +29,11 @@ public:
     Hasher& operator=(const Hasher&) = delete;
 
     virtual void reset() = 0;
-
     virtual void add(const void* data_, size_t size_) = 0;
+    virtual HashValue finish() = 0;
 
 #ifdef __cpp_lib_span
-    template <class TypeT> void add(const std::span<const TypeT> data_)
+    template <class TypeT> void add(const std::span<TypeT> data_)
     {
         this->add(data_.data(), data_.size() * sizeof(TypeT));
     }
@@ -49,8 +49,6 @@ public:
 
     void add(const char* data_);
     void add(const wchar_t* data_);
-
-    virtual HashValue finish() = 0;
 };
 
 HashValue hash_file(const std::filesystem::path& path_, HashType type_ = HashType::Default,
@@ -60,6 +58,7 @@ HashValue hash_file(const std::filesystem::path& path_, const std::span<char>& b
                     HashType type_ = HashType::Default);
 #endif
 std::string hash_to_hex(const HashValue& hash_);
+std::wstring whash_to_hex(const HashValue& hash_);
 } // namespace nstl
 
 #endif

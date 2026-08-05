@@ -58,6 +58,7 @@ public:
     std::string url_decode(std::string_view data_) const;
 
     void reset();
+    void reset_hdrs();
 
     std::string_view error_view() const;
 };

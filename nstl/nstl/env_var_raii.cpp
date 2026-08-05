@@ -69,10 +69,7 @@ env_var_raii::~env_var_raii()
 std::string_view get_env_var(const char* name_)
 {
     NSTL2_THROW_EXCEPTION_IF(!name_, "environment variable name cannot be nullptr");
-    if (const char* ptr = ::getenv(name_))
-    {
-        return std::string_view{ ptr };
-    }
-    return std::string_view{};
+    const char* ptr = ::getenv(name_);
+    return ptr ? std::string_view{ ptr } : std::string_view{};
 }
 } // namespace nstl

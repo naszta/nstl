@@ -14,6 +14,7 @@
 #include <array>
 #include <memory>
 #include <stdexcept>
+#include <utility>
 
 namespace nstl::net
 {
@@ -34,26 +35,30 @@ namespace
 {
 struct AddrinfoDeleter
 {
-    void operator()(addrinfo* ptr) const
-    {
-        if (ptr)
-        {
-            ::freeaddrinfo(ptr);
-        }
-    }
+    void operator()(addrinfo* ptr) const { ::freeaddrinfo(ptr); }
 };
 } // namespace
 
 std::optional<std::string> canonical_name(const char* name_)
 {
+#ifdef _WIN32
+    constexpr int host_not_found = WSAHOST_NOT_FOUND;
+#else
+    constexpr int host_not_found = EAI_NONAME;
+#endif
     NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
     struct addrinfo hints;
     std::memset(&hints, 0, sizeof(addrinfo));
     hints.ai_family = AF_UNSPEC;
     hints.ai_flags = AI_CANONNAME;
     addrinfo* result_raw = nullptr;
-    NSTL2_THROW_EXCEPTION_IF(::getaddrinfo(name_, nullptr, &hints, &result_raw) != 0, name_ << " cannot be resolved");
-    std::unique_ptr<addrinfo, AddrinfoDeleter> result{ result_raw };
+    const auto success = ::getaddrinfo(name_, nullptr, &hints, &result_raw);
+    std::unique_ptr<addrinfo, AddrinfoDeleter> result{ std::exchange(result_raw, nullptr) };
+    if (success != 0)
+    {
+        NSTL2_THROW_EXCEPTION_IF(success != host_not_found, "Issues on resolving " << name_);
+        return std::nullopt;
+    }
 
     std::optional<std::string> retval;
 

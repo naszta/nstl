@@ -1,12 +1,10 @@
 #include "global_init.hpp"
 #include "exception.hpp"
 
-#ifdef _WIN32
-#include <ws2tcpip.h>
-#endif
-
 #ifdef NSTL_USING_CURL
 #include <curl/curl.h>
+#elif defined(_WIN32)
+#include <ws2tcpip.h>
 #endif
 
 namespace nstl

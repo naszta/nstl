@@ -6,10 +6,13 @@ TEST(SafeBaseName, View)
 {
     constexpr auto name = ::nstl::safe_basename_view(__FILE__);
     static_assert(!name.empty());
-    EXPECT_EQ(name, "safe_basename_tests.cpp");
-    EXPECT_EQ(::nstl::safe_basename_view(__FILE__), "safe_basename_tests.cpp");
-    EXPECT_EQ(::nstl::safe_basename_view("safe_basename_tests.cpp"), "safe_basename_tests.cpp");
-    EXPECT_EQ(::nstl::safe_basename_view(std::string_view{}), std::string_view{});
+    static_assert(!name.empty());
+    constexpr std::string_view expected_value{ "safe_basename_tests.cpp" };
+    static_assert(name.compare(expected_value) == 0);
+    constexpr auto basic = ::nstl::safe_basename_view("safe_basename_tests.cpp");
+    static_assert(basic.compare(expected_value) == 0);
+    constexpr auto empty = ::nstl::safe_basename_view(std::string_view{});
+    static_assert(empty.empty());
 }
 
 TEST(SafeBaseName, WView)
@@ -20,7 +23,10 @@ TEST(SafeBaseName, WView)
     constexpr auto name = ::nstl::safe_basename_view(L"/dir/path/safe_basename_tests.cpp");
 #endif
     static_assert(!name.empty());
-    EXPECT_EQ(name, L"safe_basename_tests.cpp");
-    EXPECT_EQ(::nstl::safe_basename_view(L"safe_basename_tests.cpp"), L"safe_basename_tests.cpp");
-    EXPECT_EQ(::nstl::safe_basename_view(std::wstring_view{}), std::wstring_view{});
+    constexpr std::wstring_view expected_value{ L"safe_basename_tests.cpp" };
+    static_assert(name.compare(expected_value) == 0);
+    constexpr auto basic = ::nstl::safe_basename_view(L"safe_basename_tests.cpp");
+    static_assert(basic.compare(expected_value) == 0);
+    constexpr auto empty = ::nstl::safe_basename_view(std::wstring_view{});
+    static_assert(empty.empty());
 }

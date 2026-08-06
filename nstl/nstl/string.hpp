@@ -1,12 +1,14 @@
 #ifndef _NSTL_STRING
 #define _NSTL_STRING 1
 
+#include <concepts>
 #include <cctype>
 #include <string_view>
 
 namespace nstl
 {
 template <class CharT, class TraitsT, class FuncT>
+    requires std::invocable<FuncT, std::basic_string_view<CharT, TraitsT>>
 size_t split_view_func(const std::basic_string_view<CharT, TraitsT> view_, const CharT delim_, FuncT func,
                        const bool skip_empty_ = true)
 {

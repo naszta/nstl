@@ -6,7 +6,15 @@
 
 namespace nstl
 {
-template <class... _Mutexes> class unlock_guard
+template <class Type>
+concept BasicLockable = requires(Type m) {
+    m.lock();
+    m.unlock();
+};
+
+template <class... _Mutexes>
+    requires(BasicLockable<_Mutexes> && ...)
+class unlock_guard
 {
     std::tuple<_Mutexes&...> _locks;
 
@@ -27,14 +35,16 @@ public:
     unlock_guard& operator=(const unlock_guard&) = delete;
 };
 
-template <class BasicLockableT> class unlock_guard<BasicLockableT>
+template <class Type>
+    requires(BasicLockable<Type>)
+class unlock_guard<Type>
 {
-    BasicLockableT& _lock;
+    Type& _lock;
 
 public:
-    explicit unlock_guard(BasicLockableT& lock_) : _lock{ lock_ } { _lock.unlock(); }
+    explicit unlock_guard(Type& lock_) : _lock{ lock_ } { _lock.unlock(); }
 
-    explicit unlock_guard(std::defer_lock_t, BasicLockableT& lock_) : _lock{ lock_ } {}
+    explicit unlock_guard(std::defer_lock_t, Type& lock_) : _lock{ lock_ } {}
 
     ~unlock_guard() { _lock.lock(); }
     unlock_guard(const unlock_guard&) = delete;

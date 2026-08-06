@@ -3,12 +3,20 @@
 
 #include <ostream>
 #include <type_traits>
+#include <ranges>
 
 namespace nstl
 {
 namespace detail
 {
-template <class IterType, class DelimType> class Streamer
+template <typename T>
+concept Streamable = requires(std::ostream os, const T value) {
+    { os << value };
+};
+
+template <class IterType, class DelimType>
+    requires(std::input_iterator<IterType> && ::nstl::detail::Streamable<DelimType>)
+class Streamer
 {
     IterType _beg;
     IterType _end;
@@ -39,7 +47,10 @@ public:
     }
 };
 
-template <class IterType, class DelimType, class EqDelimType> class MapStreamer
+template <class IterType, class DelimType, class EqDelimType>
+    requires(std::input_iterator<IterType> && ::nstl::detail::Streamable<DelimType> &&
+             ::nstl::detail::Streamable<EqDelimType>)
+class MapStreamer
 {
     IterType _beg;
     IterType _end;
@@ -77,13 +88,17 @@ public:
 };
 } // namespace detail
 
-template <class IterType, class DelimType> auto range_print_iter(IterType beg_, IterType end_, DelimType delim_)
+template <class IterType, class DelimType>
+    requires(std::input_iterator<IterType> && ::nstl::detail::Streamable<DelimType>)
+auto range_print_iter(IterType beg_, IterType end_, DelimType delim_)
 {
     return ::nstl::detail::Streamer{ std::forward<IterType>(beg_), std::forward<IterType>(end_),
                                      std::forward<DelimType>(delim_) };
 }
 
-template <class RangeType, class DelimType> auto range_print(RangeType&& range_, DelimType delim_)
+template <class RangeType, class DelimType>
+    requires(std::ranges::input_range<RangeType> && ::nstl::detail::Streamable<DelimType>)
+auto range_print(RangeType&& range_, DelimType delim_)
 {
     static_assert(std::is_lvalue_reference_v<RangeType>,
                   "range_print stores iterators into range_; passing a temporary would leave the "
@@ -93,6 +108,8 @@ template <class RangeType, class DelimType> auto range_print(RangeType&& range_,
 }
 
 template <class IterType, class DelimType, class EqDelimType>
+    requires(std::input_iterator<IterType> && ::nstl::detail::Streamable<DelimType> &&
+             ::nstl::detail::Streamable<EqDelimType>)
 auto range_map_print_iter(IterType beg_, IterType end_, DelimType delim_, EqDelimType eq_delim_)
 {
     return ::nstl::detail::MapStreamer{ std::forward<IterType>(beg_), std::forward<IterType>(end_),
@@ -100,6 +117,8 @@ auto range_map_print_iter(IterType beg_, IterType end_, DelimType delim_, EqDeli
 }
 
 template <class RangeType, class DelimType, class EqDelimType>
+    requires(std::ranges::input_range<RangeType> && ::nstl::detail::Streamable<DelimType> &&
+             ::nstl::detail::Streamable<EqDelimType>)
 auto range_map_print(RangeType&& range_, DelimType delim_, EqDelimType eq_delim_)
 {
     static_assert(std::is_lvalue_reference_v<RangeType>,

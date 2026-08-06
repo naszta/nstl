@@ -80,7 +80,7 @@ endif()
 ADD_LIBRARY(nstllib ${nstllibHdrs} ${nstllibSrcs})
 
 target_compile_features(nstllib PUBLIC cxx_std_20)
-target_include_directories(nstllib PUBLIC ${nstllib_SOURCE_DIR})
+target_include_directories(nstllib PUBLIC ${nstllib_SOURCE_DIR} ${Boost_INCLUDE_DIRS})
 
 if (WIN32)
   list(APPEND nstllib_private_dependencies Ws2_32.lib Dnsapi.lib)

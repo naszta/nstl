@@ -9,7 +9,7 @@ endif()
 PROJECT(nstlroot)
 
 SET(nstlroot_MAJOR_VERSION 0)
-SET(nstlroot_MINOR_VERSION 3)
+SET(nstlroot_MINOR_VERSION 4)
 SET(nstlroot_BUILD_VERSION 0)
 
 IF(EXISTS ${nstlroot_SOURCE_DIR}/.git)

@@ -150,3 +150,9 @@ TEST(RoBuffer, TimeStamp)
         ADD_FAILURE() << stamp_view << " cannot be parsed";
     }
 }
+
+TEST(RoBuffer, InvalidInput)
+{
+    EXPECT_THROW(nstl::ro_buffer(nullptr, 42), std::exception);
+    EXPECT_THROW(nstl::wro_buffer(nullptr, 42), std::exception);
+}

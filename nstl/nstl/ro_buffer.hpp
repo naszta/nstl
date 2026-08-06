@@ -1,6 +1,8 @@
 #ifndef _NSTL_RO_BUFFER
 #define _NSTL_RO_BUFFER 1
 
+#include <nstl/exception.hpp>
+
 #include <streambuf>
 #include <string_view>
 #ifdef __cpp_lib_span
@@ -21,8 +23,9 @@ public:
     using view_type = std::basic_string_view<CharT, TraitsT>;
     using base_type = std::basic_streambuf<CharT, TraitsT>;
 
-    basic_ro_buffer(const CharT* ptr, size_t size)
+    basic_ro_buffer(const CharT* ptr, const size_t size)
     {
+        NSTL2_THROW_EXCEPTION_IF(!ptr && 0 < size, "nullptr with non-null size (" << size << ')');
         CharT* begin = const_cast<CharT*>(ptr); // it's safe because pbackfail made to be dead
         this->setg(begin, begin, begin + size);
         this->setp(begin, begin);
@@ -55,7 +58,7 @@ protected:
     int sync() final { return -1; }
     // nothing to read
     int_type underflow() final { return traits_type::eof(); }
-    // the buffer is const: we must not change it
+    // put a character back to stream, the buffer is const: we must not change it
     int_type pbackfail(int_type) final { return traits_type::eof(); }
 };
 

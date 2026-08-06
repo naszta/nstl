@@ -37,7 +37,7 @@ endif()
 
 ADD_EXECUTABLE(nstltest ${nstltestSrcs})
 
-TARGET_LINK_LIBRARIES(nstltest nstllib GTest::gtest)
+TARGET_LINK_LIBRARIES(nstltest nstllib GTest::gtest Boost::headers Boost::program_options)
 
 include(GoogleTest)
 gtest_discover_tests(nstltest)

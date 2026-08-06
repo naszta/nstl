@@ -18,3 +18,17 @@ jobs:
         submodules: 'true'
     - name: Test docker image
       run: docker build -t nstl-build . && docker run --rm nstl-build sh -c "cd /src/build && ctest --output-on-failure"
+
+  test-windows:
+
+    runs-on: windows-latest
+
+    env:
+      DOCKER_BUILDKIT: 1
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Test docker image (Windows container)
+      run: |
+        docker build -t nstl-build-windows -f Dockerfile.windows .
+        docker run --rm nstl-build-windows ctest --output-on-failure

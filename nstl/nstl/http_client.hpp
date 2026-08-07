@@ -2,6 +2,7 @@
 #define _NSTL_HTTP_CLIENT 1
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <regex>
@@ -40,17 +41,21 @@ class Client
     curl_ptr _curl;
     curl_headers_ptr _headers;
 
-    void _common(const char* url_, bool verify_);
-
 public:
+    using duration = std::chrono::milliseconds;
+    static constexpr duration default_timeout{ 10000 };
+
     explicit Client(bool verbose_ = false);
     ~Client();
     Client(const Client&) = delete;
     Client& operator=(const Client&) = delete;
 
-    std::pair<std::int32_t, std::string> get(const char* url_, bool verify_ = true);
-    std::pair<std::int32_t, std::string> post(const char* url_, bool verify_ = true);
-    std::pair<std::int32_t, std::string> post(const char* url_, const std::string_view data_, bool verify_ = true);
+    std::pair<std::int32_t, std::string> get(const char* url_, duration timeout_ = default_timeout,
+                                             bool verify_ = true);
+    std::pair<std::int32_t, std::string> post(const char* url_, duration timeout_ = default_timeout,
+                                              bool verify_ = true);
+    std::pair<std::int32_t, std::string> post(const char* url_, const std::string_view data_,
+                                              duration timeout_ = default_timeout, bool verify_ = true);
 
     bool add_header(const char* header_);
 
@@ -61,6 +66,9 @@ public:
     void reset_hdrs();
 
     std::string_view error_view() const;
+
+private:
+    void _common(const char* url_, duration timeout_, bool verify_);
 };
 } // namespace nstl::http
 

@@ -26,6 +26,7 @@ SET(nstllibHdrs
   nstl/string.hpp
   nstl/temp_dir.hpp
   nstl/unlock_guard.hpp
+  nstl/vector.hpp
 )
 
 SET(nstllibSrcs

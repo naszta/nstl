@@ -24,6 +24,7 @@ SET(nstltestSrcs
   signal_barrier_tests.cpp
   memory_tests.cpp
   base64_tests.cpp
+  vector_tests.cpp
 )
 
 if (NSTL_USING_CURL)

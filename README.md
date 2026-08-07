@@ -56,12 +56,25 @@ docker build -t nstl .
 | [`nstl/memory.hpp`](nstl/nstl/memory.hpp) | `nstl::observer_ptr` (alias `leaking_ptr`) — a non-owning smart pointer, header-only: constructible from a raw pointer, `unique_ptr` (any deleter), or `shared_ptr`, with the usual comparison operators, `make_observer()` factories, and a `std::hash` specialization. |
 | [`nstl/base64.hpp`](nstl/nstl/base64.hpp) | `nstl::to_base64` / `nstl::from_base64` — header-only base64 encode/decode over iterator pairs or ranges, built on Boost.Archive's base64 iterators. |
 | [`nstl/macros.hpp`](nstl/nstl/macros.hpp) | `NSTL_THROW_EXCEPTION` / `NSTL_THROW_EXCEPTION_IF` — throw an exception of a caller-chosen type, with a message prefixed by file (via `safe_basename_view`) and line number. |
+| [`nstl/parse.hpp`](nstl/nstl/parse.hpp) | `nstl::parse_view<T>()` — parses an arithmetic type (or `bool`, from `"true"`/`"false"`/`"1"`/`"0"`) out of a `string_view` via `std::from_chars`, throwing if the view is empty, isn't fully consumed, or isn't a valid number. |
 | [`nstl/exception.hpp`](nstl/nstl/exception.hpp) | `nstl::exception` — a `std::runtime_error` that records the throw site's file/line and prints nested exception chains via `operator<<`. The `NSTL2_THROW_EXCEPTION` / `NSTL2_THROW_EXCEPTION_IF` macros throw one with a message prefixed by file (via `safe_basename_view`) and line number; `NSTL2_NESTED_THROW_EXCEPTION` does the same via `std::throw_with_nested`, to chain onto a caught exception. |
 | [`nstl/env_var_raii.hpp`](nstl/nstl/env_var_raii.hpp) | `nstl::env_var_raii` — RAII guard that sets (or clears) an environment variable and restores its previous value on destruction. `get_env_var()` reads one without throwing if unset. |
 | [`nstl/logging.hpp`](nstl/nstl/logging.hpp) | `nstl::log::Logger` and the `NSTL_DEBUG` / `NSTL_INFO` / `NSTL_WARNING` / `NSTL_ERROR` / `NSTL_TERMINATE` macros — leveled, timestamped logging to a file, `ostream`, or a custom sink function, with a timezone-aware timestamp via `LogTimeZone`. Log lines (`` timestamp\|file:line\|thread-id\|LEVEL\|message ``) are handed off to a background thread through a TBB concurrent queue, so callers don't block on I/O. Constructing a `Logger` pushes it onto a stack (only one console logger may be active at a time) with its own level; the innermost one receives log calls, and the previous one — and its level — resumes when it's destroyed. `throttleSize()` caps the queue so a stalled sink can't grow unbounded; `NSTL_TERMINATE` logs, flushes, and calls `std::abort()`. |
 | [`nstl/datahash.hpp`](nstl/nstl/datahash.hpp) / [`nstl/datahash_fwd.hpp`](nstl/nstl/datahash_fwd.hpp) | `nstl::Hasher` — a streaming MD5/SHA1/SHA256/SHA512 hasher (`HashType`) whose `add()` takes raw bytes, a `span` of any trivially-copyable type, a `string_view`, or a NUL-terminated `char*`/`wchar_t*`. `hash_file()` hashes a file directly (optionally into a caller-supplied buffer), and `hash_to_hex()` / `whash_to_hex()` render a readable (narrow or wide) digest. Backed by OpenSSL on Linux/macOS and Windows CryptoAPI on Windows. |
 | [`nstl/global_init.hpp`](nstl/nstl/global_init.hpp) | `nstl::global_init` — RAII one-time process-wide setup/teardown: `curl_global_init`/`curl_global_cleanup` when the HTTP client is enabled, otherwise Winsock (`WSAStartup`/`WSACleanup`) on Windows (curl initializes Winsock itself, so both aren't needed). Construct one instance before using networking components. |
-| [`nstl/http_client.hpp`](nstl/nstl/http_client.hpp) | `nstl::http::Client` — a libcurl-based HTTP client: `get()` / `post()`, `add_header()`, `reset_hdrs()` to clear just the accumulated headers, `url_encode()` / `url_decode()`, plus the free functions `nstl::http::is_http_success()` / `is_ssl_supported()`. `nstl::url::is_valid_url()` validates a URL per RFC 3986 and, given a `view_results` out-param, also returns the matched protocol/hostname/path/params spans (`ResIdx`). Requires `nstl::global_init` to have run first; only built when `NSTL_USING_CURL` is on (the default). |
+| [`nstl/http_client.hpp`](nstl/nstl/http_client.hpp) | `nstl::http::Client` — a libcurl-based HTTP client: `get()` / `post()` (each taking an optional `duration` connect/total timeout, defaulting to 10s, and following up to 10 redirects), `add_header()`, `reset_hdrs()` to clear just the accumulated headers, `url_encode()` / `url_decode()`, plus the free functions `nstl::http::is_http_success()` / `is_ssl_supported()`. `nstl::url::is_valid_url()` validates a URL per RFC 3986 and, given a `view_results` out-param, also returns the matched protocol/hostname/path/params spans (`ResIdx`). Requires `nstl::global_init` to have run first; only built when `NSTL_USING_CURL` is on (the default). |
+
+## Tools
+
+`bin/multi_runner` launches N copies of a command as parallel child processes
+(`fork`/`execve` on POSIX, `CreateProcess` on Windows), each with
+`NSTL_PROCESSES_NUMBER` (total count) and `NSTL_PROCESSES_ID` (0-based index)
+set in its environment. It waits for all children, and if any exits non-zero,
+terminates the rest and propagates that exit code:
+
+```sh
+multi_runner <thread-count> <command> [args...]
+```
 
 ## Usage
 

@@ -17,6 +17,7 @@ SET(nstllibHdrs
   nstl/logging.hpp
   nstl/macros.hpp
   nstl/memory.hpp
+  nstl/parse.hpp
   nstl/range_print.hpp
   nstl/ro_buffer.hpp
   nstl/safe_basename.hpp

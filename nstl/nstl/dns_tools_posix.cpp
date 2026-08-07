@@ -220,6 +220,8 @@ public:
                                                continue;
                                            }
                                            const auto rdata = ns_rr_rdata(raw_record);
+                                           const auto size = ns_rr_rdlen(raw_record);
+                                           NSTL2_THROW_EXCEPTION_IF(size <= 6, "Invalid SRV record");
 
                                            gen_srv record;
                                            record.priority = ns_get16(rdata);

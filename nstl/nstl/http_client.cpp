@@ -66,22 +66,16 @@ int my_trace(CURL* /* curl*/, const curl_infotype type, const char* data, size_t
 }
 } // namespace
 
-void CurlDeleter::operator()(CURL* curl_) const
-{
-    ::curl_easy_cleanup(curl_);
-}
+void CurlDeleter::operator()(CURL* curl_) const { ::curl_easy_cleanup(curl_); }
 
-void CurlListDeleter::operator()(curl_slist* ptr_) const
-{
-    ::curl_slist_free_all(ptr_);
-}
+void CurlListDeleter::operator()(curl_slist* ptr_) const { ::curl_slist_free_all(ptr_); }
 
 Client::Client(const bool verbose_) : _curl{ ::curl_easy_init() }
 {
     static_assert(CURL_ERROR_SIZE <= error_size, "Error size should be at least CURL_ERROR_SIZE");
     std::memset(_error.data(), 0, _error.size());
     NSTL2_THROW_EXCEPTION_IF(!_curl, "curl_easy_init failed");
-    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_NOSIGNAL, 1L)); // no signal
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_NOSIGNAL, 1L));               // no signal
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_ERRORBUFFER, _error.data())); // error buffer
     if (verbose_)
     {
@@ -100,10 +94,16 @@ bool is_ssl_supported()
     return version->features & CURL_VERSION_SSL;
 }
 
-void Client::_common(const char* url_, const bool verify_)
+void Client::_common(const char* url_, const duration timeout_, const bool verify_)
 {
     NSTL2_THROW_EXCEPTION_IF(!url_, "URL pointer is nullptr!");
     _error[0] = '\0';
+    if (duration::zero() < timeout_)
+    {
+        NSTL_CURL_CHECK(
+            ::curl_easy_setopt(_curl.get(), CURLOPT_CONNECTTIMEOUT_MS, static_cast<long>(timeout_.count())););
+        NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_TIMEOUT_MS, static_cast<long>(timeout_.count())););
+    }
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_WRITEFUNCTION, writeFunction));
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_URL, url_));
     if (_headers)
@@ -112,11 +112,12 @@ void Client::_common(const char* url_, const bool verify_)
     }
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_SSL_VERIFYPEER, verify_ ? 1L : 0L));
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_FOLLOWLOCATION, 1L));
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_MAXREDIRS, 10L));
 }
 
-std::pair<std::int32_t, std::string> Client::get(const char* url_, const bool verify_)
+std::pair<std::int32_t, std::string> Client::get(const char* url_, const duration timeout_, const bool verify_)
 {
-    this->_common(url_, verify_);
+    this->_common(url_, timeout_, verify_);
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_HTTPGET, 1L));
     std::string retval;
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_WRITEDATA, &retval));
@@ -126,14 +127,15 @@ std::pair<std::int32_t, std::string> Client::get(const char* url_, const bool ve
     return std::make_pair(static_cast<std::int32_t>(http_code), std::move(retval));
 }
 
-std::pair<std::int32_t, std::string> Client::post(const char* url_, const bool verify_)
+std::pair<std::int32_t, std::string> Client::post(const char* url_, const duration timeout_, const bool verify_)
 {
-    return this->post(url_, std::string_view{}, verify_);
+    return this->post(url_, std::string_view{}, timeout_, verify_);
 }
 
-std::pair<std::int32_t, std::string> Client::post(const char* url_, const std::string_view data_, const bool verify_)
+std::pair<std::int32_t, std::string> Client::post(const char* url_, const std::string_view data_,
+                                                  const duration timeout_, const bool verify_)
 {
-    this->_common(url_, verify_);
+    this->_common(url_, timeout_, verify_);
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_POST, 1L));
     if (!data_.empty())
     {
@@ -198,7 +200,10 @@ std::string Client::url_decode(const std::string_view data_) const
     return std::string{ decoded, static_cast<size_t>(out_len) };
 }
 
-std::string_view Client::error_view() const { return std::string_view{ _error.data(), strnlen(_error.data(), _error.size()) }; }
+std::string_view Client::error_view() const
+{
+    return std::string_view{ _error.data(), strnlen(_error.data(), _error.size()) };
+}
 
 void Client::reset() { ::curl_easy_reset(_curl.get()); }
 void Client::reset_hdrs() { _headers.reset(); }

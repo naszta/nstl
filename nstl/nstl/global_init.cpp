@@ -1,16 +1,56 @@
 #include "global_init.hpp"
 #include "exception.hpp"
 
+#include <atomic>
+
 #ifdef NSTL_USING_CURL
 #include <curl/curl.h>
 #elif defined(_WIN32)
 #include <ws2tcpip.h>
 #endif
 
+#ifdef __linux__
+#include <unistd.h>
+#include <sys/signalfd.h>
+#include <signal.h>
+#endif
+
 namespace nstl
 {
-global_init::global_init(const bool curl_init_) : _curl_init{curl_init_}
+namespace
 {
+std::atomic_bool init_done{false};
+std::atomic_int sfd_global{-1};
+
+#ifdef __linux__
+int openSignalFile(const bool signal_init_)
+{
+    if (!signal_init_)
+    {
+        return -1;
+    }
+    sigset_t mask, orig;
+    ::sigemptyset(&mask);
+    ::sigaddset(&mask, SIGINT);
+    ::sigaddset(&mask, SIGTERM);
+    ::sigaddset(&mask, SIGQUIT);
+    NSTL2_THROW_EXCEPTION_IF(::sigprocmask(SIG_BLOCK, &mask, &orig) < 0, "sigprocmask failed");
+    const int sfd = ::signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
+    NSTL2_THROW_EXCEPTION_IF(sfd < 0, "signalfd failed");
+    return sfd;
+}
+#else
+int openSignalFile(bool /* signal_init_ */) { return -1; }
+#endif
+} // namespace
+
+int global_init::getSignalFile() { return sfd_global; }
+
+global_init::global_init(bool signal_init_, const bool curl_init_) : _curl_init{ curl_init_ }
+{
+    NSTL2_THROW_EXCEPTION_IF(init_done.exchange(true), "global_init did run once");
+
+    sfd_global.store(openSignalFile(signal_init_));
 #if defined(NSTL_USING_CURL)
     if (this->_curl_init)
     {
@@ -32,6 +72,13 @@ global_init::~global_init()
     }
 #elif defined(_WIN32)
     ::WSACleanup();
+#endif
+
+#ifdef __linux__
+    if (const int sfd = sfd_global.exchange(-1); 0 <= sfd)
+    {
+        ::close(sfd);
+    }
 #endif
 }
 } // namespace nstl

@@ -5,6 +5,7 @@ if (NSTL_USING_OPENSSL)
 endif()
 
 SET(nstllibHdrs
+  nstl/args_editor.hpp
   nstl/base64.hpp
   nstl/c_timezone.hpp
   nstl/datahash_fwd.hpp
@@ -38,9 +39,15 @@ SET(nstllibSrcs
   nstl/exception.cpp
   nstl/global_init.cpp
   nstl/logging.cpp
-  nstl/signal_barrier.cpp
+  nstl/signal_barrier_common.cpp
   nstl/temp_dir.cpp
 )
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  list(APPEND nstllibSrcs nstl/signal_barrier_linux.cpp)
+else()
+  list(APPEND nstllibSrcs nstl/signal_barrier.cpp)
+endif()
 
 if(WIN32)
   list(APPEND nstllibSrcs nstl/dns_tools_w32.cpp)

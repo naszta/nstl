@@ -40,7 +40,7 @@ int main(int argc_, char** argv_)
         return EXIT_FAILURE;
     }
 
-    nstl::global_init instance;
+    const nstl::global_init instance{ true };
     nstl::log::Logger logger{ verbose ? nstl::log::LogLevel::Debug : nstl::log::LogLevel::Info };
     NSTL_INFO("Log working");
     return RUN_ALL_TESTS();

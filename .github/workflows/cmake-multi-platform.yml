@@ -48,7 +48,7 @@ jobs:
     - name: Install packages (Linux)
       if: runner.os == 'Linux'
       run:
-        sudo apt-get install -y build-essential git cmake libssl-dev ccache ninja-build libcurl4-openssl-dev curl ca-certificates gcc-14 g++-14
+        sudo apt-get install -y build-essential git cmake libssl-dev ccache ninja-build libcurl4-openssl-dev curl libgtest-dev googletest libtbb-dev libboost-all-dev ca-certificates gcc-14 g++-14
 
     - name: Bump g++ to 14
       if: runner.os == 'Linux'

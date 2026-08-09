@@ -38,15 +38,19 @@ set(NSTL_USING_CURL ON CACHE BOOL "Adding curl module")
 
 include(FetchContent)
 
-FetchContent_Declare(
-  Boost
-  GIT_REPOSITORY https://github.com/boostorg/boost.git
-  GIT_TAG boost-1.91.0-1
-  GIT_SHALLOW TRUE
-  SYSTEM
-  EXCLUDE_FROM_ALL
-)
-FetchContent_MakeAvailable(Boost)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  find_package(Boost COMPONENTS headers serialization program_options)
+else()
+  FetchContent_Declare(
+    Boost
+    GIT_REPOSITORY https://github.com/boostorg/boost.git
+    GIT_TAG boost-1.91.0-1
+    GIT_SHALLOW TRUE
+    SYSTEM
+    EXCLUDE_FROM_ALL
+  )
+  FetchContent_MakeAvailable(Boost)
+endif()
 
 if (NSTL_USING_CURL)
   set(ENABLE_CURL_MANUAL OFF CACHE BOOL "" FORCE)
@@ -85,27 +89,32 @@ if (NSTL_USING_OPENSSL)
 endif()
 
 # tbb
-FetchContent_Declare(
-  TBB
-  GIT_REPOSITORY https://github.com/uxlfoundation/oneTBB.git
-  GIT_TAG v2023.1.0
-  GIT_SHALLOW TRUE
-  SYSTEM
-  EXCLUDE_FROM_ALL
-)
-set(TBB_TEST OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(TBB)
-
 # gtest
-FetchContent_Declare(
-  GTest
-  GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG v1.17.0
-  GIT_SHALLOW TRUE
-  SYSTEM
-  EXCLUDE_FROM_ALL
-)
-FetchContent_MakeAvailable(GTest)
+set(TBB_TEST OFF CACHE BOOL "" FORCE)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  find_package(TBB REQUIRED)
+  find_package(GTest REQUIRED)
+else()
+  FetchContent_Declare(
+    TBB
+    GIT_REPOSITORY https://github.com/uxlfoundation/oneTBB.git
+    GIT_TAG v2023.1.0
+    GIT_SHALLOW TRUE
+    SYSTEM
+    EXCLUDE_FROM_ALL
+  )
+  FetchContent_MakeAvailable(TBB)
+
+  FetchContent_Declare(
+    GTest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.17.0
+    GIT_SHALLOW TRUE
+    SYSTEM
+    EXCLUDE_FROM_ALL
+  )
+  FetchContent_MakeAvailable(GTest)
+endif()
 
 # hh date
 if (NSTL_USING_HH_DATE)
@@ -135,3 +144,4 @@ ADD_SUBDIRECTORY(bin)
 
 enable_testing()
 ADD_SUBDIRECTORY(tests)
+ADD_SUBDIRECTORY(bin/test)

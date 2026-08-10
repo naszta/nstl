@@ -38,7 +38,7 @@ set(NSTL_USING_CURL ON CACHE BOOL "Adding curl module")
 
 include(FetchContent)
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if(LINUX)
   find_package(Boost COMPONENTS headers serialization program_options)
 else()
   FetchContent_Declare(
@@ -91,7 +91,7 @@ endif()
 # tbb
 # gtest
 set(TBB_TEST OFF CACHE BOOL "" FORCE)
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if(LINUX)
   find_package(TBB REQUIRED)
   find_package(GTest REQUIRED)
 else()
@@ -134,6 +134,13 @@ endif()
 add_compile_definitions(
   $<$<CONFIG:RELEASE>:NDEBUG>
 )
+
+string(TOLOWER "${CMAKE_CXX_COMPILER_ID}" COMPILER_ID)
+if (COMPILER_ID STREQUAL "clang")
+    set(IS_CLANG_BUILD ON)
+else ()
+    set(IS_CLANG_BUILD OFF)
+endif ()
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}

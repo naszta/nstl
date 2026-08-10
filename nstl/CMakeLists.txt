@@ -6,6 +6,7 @@ endif()
 
 SET(nstllibHdrs
   nstl/args_editor.hpp
+  nstl/backtrace.hpp
   nstl/base64.hpp
   nstl/c_timezone.hpp
   nstl/datahash_fwd.hpp
@@ -43,10 +44,16 @@ SET(nstllibSrcs
   nstl/temp_dir.cpp
 )
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  list(APPEND nstllibSrcs nstl/signal_barrier_linux.cpp)
+if(LINUX)
+  if (IS_CLANG_BUILD)
+    list(APPEND nstllibSrcs nstl/signal_barrier_linux.cpp nstl/backtrace_common.cpp)
+  else ()
+    list(APPEND nstllibSrcs nstl/signal_barrier_linux.cpp nstl/backtrace_linux.cpp)
+  endif()
+elseif(WIN32)
+  list(APPEND nstllibSrcs nstl/signal_barrier.cpp nstl/backtrace_win32.cpp)
 else()
-  list(APPEND nstllibSrcs nstl/signal_barrier.cpp)
+  list(APPEND nstllibSrcs nstl/signal_barrier.cpp nstl/backtrace_common.cpp)
 endif()
 
 if(WIN32)
@@ -71,6 +78,12 @@ set(nstllib_public_dependencies
   Boost::headers Boost::serialization
 )
 
+if(LINUX)
+  if (NOT IS_CLANG_BUILD)
+    list(APPEND nstllib_public_dependencies backtrace)
+  endif()
+endif()
+
 if (NSTL_USING_HH_DATE)
   list(APPEND nstllib_public_dependencies date::date date::date-tz)
   add_compile_definitions(NSTL_USING_HH_DATE)
@@ -92,7 +105,7 @@ target_compile_features(nstllib PUBLIC cxx_std_20)
 target_include_directories(nstllib PUBLIC ${nstllib_SOURCE_DIR} ${Boost_INCLUDE_DIRS})
 
 if (WIN32)
-  list(APPEND nstllib_private_dependencies Ws2_32.lib Dnsapi.lib)
+  list(APPEND nstllib_private_dependencies Ws2_32.lib Dnsapi.lib dbghelp.lib)
 else()
   list(APPEND nstllib_private_dependencies resolv)
 endif()

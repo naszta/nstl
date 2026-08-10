@@ -1,5 +1,6 @@
 #include "global_init.hpp"
 #include "exception.hpp"
+#include "backtrace.hpp"
 
 #include <atomic>
 
@@ -51,6 +52,9 @@ global_init::global_init(bool signal_init_, const bool curl_init_) : _curl_init{
     NSTL2_THROW_EXCEPTION_IF(init_done.exchange(true), "global_init did run once");
 
     sfd_global.store(openSignalFile(signal_init_));
+
+    bt::backtrace_init();
+
 #if defined(NSTL_USING_CURL)
     if (this->_curl_init)
     {

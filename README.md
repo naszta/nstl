@@ -10,13 +10,13 @@ pulling in a heavyweight dependency.
 
 - C++20 compiler (GCC, Clang, or MSVC)
 - CMake 3.28+
-- [oneTBB](https://github.com/uxlfoundation/oneTBB) (found via `find_package(TBB REQUIRED)`) — used for the async logging queue
-- [GoogleTest](https://github.com/google/googletest) (found via `find_package(GTest REQUIRED)`) — install it via your system/package manager (e.g. `apt install libgtest-dev googletest`), it is no longer fetched automatically
-- Windows: links against `Ws2_32.lib`, `Dnsapi.lib`, and `Advapi32.lib` (hashing via CryptoAPI)
-- Linux/macOS: links against `resolv`, and requires [OpenSSL](https://www.openssl.org/) (found via `find_package(OpenSSL REQUIRED)`, e.g. `apt install libssl-dev`) for hashing
-- macOS: builds the [HowardHinnant/date](https://github.com/HowardHinnant/date) library from the `modules/date` git submodule, since Apple's `std::chrono::time_zone` support isn't complete
+- [oneTBB](https://github.com/uxlfoundation/oneTBB) — used for the async logging queue. On Linux it's found via `find_package(TBB REQUIRED)` (e.g. `apt install libtbb-dev`); on Windows/macOS it's fetched and built from source via `FetchContent`
+- [GoogleTest](https://github.com/google/googletest) — on Linux it's found via `find_package(GTest REQUIRED)` (install via your system/package manager, e.g. `apt install libgtest-dev googletest`); on Windows/macOS it's fetched automatically via `FetchContent`
+- [Boost](https://www.boost.org/) (`headers`, `serialization`, and `program_options` components) — `headers` (Boost.Archive's base64 iterators) backs `base64.hpp`. On Linux it's found via `find_package(Boost COMPONENTS headers serialization program_options)` (e.g. `apt install libboost-all-dev`); on Windows/macOS it's fetched via `FetchContent`
+- Windows: links against `Ws2_32.lib`, `Dnsapi.lib`, `Advapi32.lib` (hashing via CryptoAPI), and `dbghelp.lib` (symbolized stack traces)
+- Linux: links against `resolv` and `backtrace` (libbacktrace, typically bundled with GCC — provides symbolized stack traces), and requires [OpenSSL](https://www.openssl.org/) (found via `find_package(OpenSSL REQUIRED)`, e.g. `apt install libssl-dev`) for hashing
+- macOS: links against `resolv`, requires OpenSSL for hashing, and builds the [HowardHinnant/date](https://github.com/HowardHinnant/date) library from the `modules/date` git submodule, since Apple's `std::chrono::time_zone` support isn't complete; stack traces (`backtrace.hpp`) are a no-op stub on this platform
 - [libcurl](https://curl.se/libcurl/) — required unless configured with `-DNSTL_USING_CURL=OFF`, used by the HTTP client. On Windows it's fetched and built from source (static, Schannel-backed) via `FetchContent`; elsewhere it's found via `find_package(CURL COMPONENTS HTTPS SSL)` (e.g. `apt install libcurl4-openssl-dev`)
-- [Boost](https://www.boost.org/) (`headers` and `program_options` components, found via `find_package(Boost REQUIRED headers program_options)`, e.g. `apt install libboost-all-dev`) — `headers` (Boost.Archive's base64 iterators) backs `base64.hpp`
 
 ## Building
 
@@ -26,7 +26,7 @@ cmake -S . -B build
 cmake --build build
 ```
 
-Tests (GoogleTest, found on the system via `find_package`) run through CTest:
+Tests (GoogleTest) run through CTest:
 
 ```sh
 ctest --test-dir build
@@ -49,7 +49,10 @@ docker build -t nstl .
 | [`nstl/scope_exit.hpp`](nstl/nstl/scope_exit.hpp) | `nstl::scope_exit` / `on_scope_exit` — RAII guard that runs a callable when the scope exits; `reset()` cancels it, `swap()` exchanges its callable, and `empty()` / `explicit operator bool()` report whether one is set. |
 | [`nstl/unlock_guard.hpp`](nstl/nstl/unlock_guard.hpp) | `nstl::unlock_guard` — the inverse of `std::lock_guard`: unlocks one or more mutexes for the current scope and re-locks them on destruction. |
 | [`nstl/dead_lock_detect.hpp`](nstl/nstl/dead_lock_detect.hpp) | `nstl::DeadLockChecker` — tracks a set of `DeadLockThreadExecutor` heartbeats (one per monitored thread, `bump()`ed periodically) and invokes an alerter callback if any goes silent past a timeout; `runner()` runs the check loop on the calling thread until `stop()`. `PerfCheck` is a small `steady_clock` stopwatch. |
-| [`nstl/signal_barrier.hpp`](nstl/nstl/signal_barrier.hpp) | `nstl::SignalBarrier` — installs handlers for `SIGINT`/`SIGTERM`/`SIGQUIT`, restoring the previous ones on destruction, and lets a thread block on `wait()` or `wait_for(timeout)` until one arrives, polling at a configurable period (default 10ms). Only one instance may be active at a time. |
+| [`nstl/signal_barrier.hpp`](nstl/nstl/signal_barrier.hpp) | `nstl::SignalBarrier` — lets a thread block on `wait()` or `wait_for(timeout)` until a `SIGINT`/`SIGTERM`/`SIGQUIT` arrives. On Linux it reads from the non-blocking `signalfd` opened by `global_init` (constructed with `signal_init_=true`), blocking via `epoll`/`timerfd` rather than polling. Elsewhere it installs signal handlers (and a `SetConsoleCtrlHandler` on Windows), restoring the previous ones on destruction, and polls at a configurable period (default 10ms). Only one instance may be active at a time. |
+| [`nstl/vector.hpp`](nstl/nstl/vector.hpp) | `nstl::vector<T>` — a header-only, `malloc`/`realloc`-backed vector restricted to trivially-copyable `T`, with `push_back()`/`pop_back()`/`reserve()`/`clear()`/`at()`, iterator/`data()` access, and `release()` to hand off ownership as a `(pointer, size, capacity)` tuple. |
+| [`nstl/args_editor.hpp`](nstl/nstl/args_editor.hpp) | `nstl::is_arg_set()` — scans `argv` for a given flag, removing every matching entry in place (shifting `argc`/`argv` down) and returning whether it was found. |
+| [`nstl/backtrace.hpp`](nstl/nstl/backtrace.hpp) | `nstl::bt::backtrace_init()` / `pr_backtrace()` — prints a symbolized stack trace to an `ostream`, optionally prefixed with a function/file/line. Backed by [libbacktrace](https://github.com/ianlancetaylor/libbacktrace) on Linux and `dbghelp` (`CaptureStackBackTrace`/`SymFromAddr`) on Windows; a no-op stub elsewhere. `backtrace_init()` is called once by `global_init`. |
 | [`nstl/safe_basename.hpp`](nstl/nstl/safe_basename.hpp) | `nstl::safe_basename_view` — returns the filename portion of a path as a `constexpr string_view` (overloaded for `wstring_view` too), platform-aware (`\\` on Windows, `/` elsewhere), without allocating. |
 | [`nstl/string.hpp`](nstl/nstl/string.hpp) | `nstl::split_view_func`, `nstl::trim_view` / `left_trim_view` / `right_trim_view` — header-only `string_view` helpers to split on a delimiter (invoking a callback per token) and trim leading/trailing whitespace, without allocating. |
 | [`nstl/temp_dir.hpp`](nstl/nstl/temp_dir.hpp) | `nstl::temp_dir` — RAII wrapper that creates a temporary directory (random, named, or under a given parent) and removes it on destruction. |
@@ -61,7 +64,7 @@ docker build -t nstl .
 | [`nstl/env_var_raii.hpp`](nstl/nstl/env_var_raii.hpp) | `nstl::env_var_raii` — RAII guard that sets (or clears) an environment variable and restores its previous value on destruction. `get_env_var()` reads one without throwing if unset. |
 | [`nstl/logging.hpp`](nstl/nstl/logging.hpp) | `nstl::log::Logger` and the `NSTL_DEBUG` / `NSTL_INFO` / `NSTL_WARNING` / `NSTL_ERROR` / `NSTL_TERMINATE` macros — leveled, timestamped logging to a file, `ostream`, or a custom sink function, with a timezone-aware timestamp via `LogTimeZone`. Log lines (`` timestamp\|file:line\|thread-id\|LEVEL\|message ``) are handed off to a background thread through a TBB concurrent queue, so callers don't block on I/O. Constructing a `Logger` pushes it onto a stack (only one console logger may be active at a time) with its own level; the innermost one receives log calls, and the previous one — and its level — resumes when it's destroyed. `throttleSize()` caps the queue so a stalled sink can't grow unbounded; `NSTL_TERMINATE` logs, flushes, and calls `std::abort()`. |
 | [`nstl/datahash.hpp`](nstl/nstl/datahash.hpp) / [`nstl/datahash_fwd.hpp`](nstl/nstl/datahash_fwd.hpp) | `nstl::Hasher` — a streaming MD5/SHA1/SHA256/SHA512 hasher (`HashType`) whose `add()` takes raw bytes, a `span` of any trivially-copyable type, a `string_view`, or a NUL-terminated `char*`/`wchar_t*`. `hash_file()` hashes a file directly (optionally into a caller-supplied buffer), and `hash_to_hex()` / `whash_to_hex()` render a readable (narrow or wide) digest. Backed by OpenSSL on Linux/macOS and Windows CryptoAPI on Windows. |
-| [`nstl/global_init.hpp`](nstl/nstl/global_init.hpp) | `nstl::global_init` — RAII one-time process-wide setup/teardown: `curl_global_init`/`curl_global_cleanup` when the HTTP client is enabled, otherwise Winsock (`WSAStartup`/`WSACleanup`) on Windows (curl initializes Winsock itself, so both aren't needed). Construct one instance before using networking components. |
+| [`nstl/global_init.hpp`](nstl/nstl/global_init.hpp) | `nstl::global_init` — RAII one-time process-wide setup/teardown; throws if constructed more than once. Runs `bt::backtrace_init()`, then `curl_global_init`/`curl_global_cleanup` when the HTTP client is enabled (otherwise Winsock `WSAStartup`/`WSACleanup` on Windows — curl initializes Winsock itself, so both aren't needed). Pass `signal_init_=true` to also block `SIGINT`/`SIGTERM`/`SIGQUIT` and open a `signalfd` on Linux (exposed via the static `getSignalFile()`) for `SignalBarrier` to read from. Construct one instance before using networking components. |
 | [`nstl/http_client.hpp`](nstl/nstl/http_client.hpp) | `nstl::http::Client` — a libcurl-based HTTP client: `get()` / `post()` (each taking an optional `duration` connect/total timeout, defaulting to 10s, and following up to 10 redirects), `add_header()`, `reset_hdrs()` to clear just the accumulated headers, `url_encode()` / `url_decode()`, plus the free functions `nstl::http::is_http_success()` / `is_ssl_supported()`. `nstl::url::is_valid_url()` validates a URL per RFC 3986 and, given a `view_results` out-param, also returns the matched protocol/hostname/path/params spans (`ResIdx`). Requires `nstl::global_init` to have run first; only built when `NSTL_USING_CURL` is on (the default). |
 
 ## Tools
@@ -69,8 +72,10 @@ docker build -t nstl .
 `bin/multi_runner` launches N copies of a command as parallel child processes
 (`fork`/`execve` on POSIX, `CreateProcess` on Windows), each with
 `NSTL_PROCESSES_NUMBER` (total count) and `NSTL_PROCESSES_ID` (0-based index)
-set in its environment. It waits for all children, and if any exits non-zero,
-terminates the rest and propagates that exit code:
+set in its environment. Each child's stdout is piped back and forwarded to the
+runner's own stdout, and `SIGINT`/`SIGTERM`/`SIGQUIT` received by the runner
+are forwarded to every child. It waits for all children, and if any exits
+non-zero, terminates the rest and propagates that exit code:
 
 ```sh
 multi_runner <thread-count> <command> [args...]

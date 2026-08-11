@@ -28,7 +28,7 @@ Type parse_view(const std::string_view view_)
         {
             return false;
         }
-        NSTL_THROW_EXCEPTION(std::runtime_error, "view is not boolean: " << view_);
+        NSTL_THROW_EXCEPTION(std::invalid_argument, "view is not boolean: " << view_);
     }
     else
     {

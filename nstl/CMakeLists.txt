@@ -20,6 +20,7 @@ SET(nstllibHdrs
   nstl/http_client.hpp
   nstl/logging.hpp
   nstl/macros.hpp
+  nstl/math.hpp
   nstl/memory.hpp
   nstl/parse.hpp
   nstl/range_print.hpp

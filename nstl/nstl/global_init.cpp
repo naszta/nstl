@@ -5,6 +5,9 @@
 #include <atomic>
 
 #include <curl/curl.h>
+#ifdef _WIN32
+#include <ws2tcpip.h>
+#endif
 
 #ifdef __linux__
 #include <unistd.h>
@@ -55,6 +58,11 @@ global_init::global_init(bool signal_init_, const bool curl_init_) : _curl_init{
     {
         const auto result = ::curl_global_init(CURL_GLOBAL_DEFAULT);
         NSTL2_THROW_EXCEPTION_IF(result != CURLE_OK, "curl_global_init failed: " << ::curl_easy_strerror(result));
+#ifdef _WIN32
+    } else {
+        WSADATA wsaData;
+        NSTL2_THROW_EXCEPTION_IF(::WSAStartup(MAKEWORD(2, 2), &wsaData) != 0, "TCP/IP init failed");
+#endif
     }
 }
 
@@ -63,6 +71,10 @@ global_init::~global_init()
     if (this->_curl_init)
     {
         ::curl_global_cleanup();
+#ifdef _WIN32
+    } else {
+        ::WSACleanup();
+#endif
     }
 
 #ifdef __linux__

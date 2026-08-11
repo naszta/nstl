@@ -10,14 +10,15 @@
 #include <cstring>
 #include <utility>
 
-#define NSTL_CURL_CHECK(command)                                                               \
-    do                                                                                         \
-    {                                                                                          \
-        const auto _curl_res = command;                                                        \
-        if (_curl_res != CURLE_OK) [[unlikely]]                                                \
-        {                                                                                      \
-            NSTL2_THROW_EXCEPTION(#command << " failed: " << ::curl_easy_strerror(_curl_res)); \
-        }                                                                                      \
+#define NSTL_CURL_CHECK(command)                                                             \
+    do                                                                                       \
+    {                                                                                        \
+        const auto _curl_res = command;                                                      \
+        if (_curl_res != CURLE_OK) [[unlikely]]                                              \
+        {                                                                                    \
+            NSTL2_THROW_EXCEPTION(#command << " failed: " << ::curl_easy_strerror(_curl_res) \
+                                           << "; error: " << this->error_view());            \
+        }                                                                                    \
     } while (false)
 
 namespace nstl::http
@@ -34,21 +35,31 @@ size_t writeFunction(const char* ptr, size_t size, size_t nmemb, std::string* da
     return 0;
 }
 
+size_t headerFunction(const char* ptr, size_t size, size_t nmemb, ClientCbs* data)
+{
+    if (ptr && data) [[likely]]
+    {
+        data->line(ptr, size * nmemb);
+        return size * nmemb;
+    }
+    return 0;
+}
+
 int my_trace(CURL* /* curl*/, const curl_infotype type, const char* data, size_t size, void* /* userp*/)
 {
     const std::string_view data_view_base{ data, size };
     const auto data_view = right_trim_view(data_view_base);
-NSTL_WRN_SWITCH_ENUM_PUSH
+    NSTL_WRN_SWITCH_ENUM_PUSH
     switch (type)
     {
     case CURLINFO_TEXT:
         NSTL_INFO("CURL" << log::delimiter << data_view);
         return 0;
     case CURLINFO_HEADER_IN:
-        NSTL_INFO("CURL" << log::delimiter << " <= header recv - " << data_view);
+        NSTL_DEBUG("CURL" << log::delimiter << " <= header recv - " << data_view);
         return 0;
     case CURLINFO_HEADER_OUT:
-        NSTL_INFO("CURL" << log::delimiter << " => header send - " << data_view);
+        NSTL_DEBUG("CURL" << log::delimiter << " => header send - " << data_view);
         return 0;
     case CURLINFO_DATA_IN:
         NSTL_DEBUG("CURL" << log::delimiter << " <= data recv");
@@ -65,9 +76,23 @@ NSTL_WRN_SWITCH_ENUM_PUSH
     default:
         return 0;
     }
-NSTL_WRN_SWITCH_ENUM_POP
+    NSTL_WRN_SWITCH_ENUM_POP
 }
 } // namespace
+
+void ClientCbs::line(const char* data_, size_t size_) const
+{
+    if (!line_cb)
+    {
+        return;
+    }
+    const auto hdr_line = right_trim_view(std::string_view{ data_, size_ });
+    if (hdr_line.empty()) [[unlikely]]
+    {
+        return;
+    }
+    line_cb(hdr_line);
+}
 
 void CurlDeleter::operator()(CURL* curl_) const { ::curl_easy_cleanup(curl_); }
 
@@ -107,7 +132,18 @@ void Client::_common(const char* url_, const duration timeout_, const bool verif
             ::curl_easy_setopt(_curl.get(), CURLOPT_CONNECTTIMEOUT_MS, static_cast<long>(timeout_.count())););
         NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_TIMEOUT_MS, static_cast<long>(timeout_.count())););
     }
+
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_LOW_SPEED_TIME, _bw_period));
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_LOW_SPEED_LIMIT, _bw_speed));
+
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_TCP_KEEPALIVE, 1L));
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_TCP_KEEPIDLE, 30L));
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_TCP_KEEPINTVL, 10L));
+#if (8 < LIBCURL_VERSION_MAJOR) || ((8 == LIBCURL_VERSION_MAJOR) && (9 <= LIBCURL_VERSION_MINOR))
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_TCP_KEEPCNT, 3L));
+#endif
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_WRITEFUNCTION, writeFunction));
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_HEADERFUNCTION, headerFunction));
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_URL, url_));
     if (_headers)
     {
@@ -124,6 +160,7 @@ std::pair<std::int32_t, std::string> Client::get(const char* url_, const duratio
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_HTTPGET, 1L));
     std::string retval;
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_WRITEDATA, &retval));
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_HEADERDATA, &_cbs));
     long http_code = 0;
     NSTL_CURL_CHECK(::curl_easy_perform(_curl.get()));
     NSTL_CURL_CHECK(::curl_easy_getinfo(_curl.get(), CURLINFO_RESPONSE_CODE, &http_code));
@@ -147,6 +184,7 @@ std::pair<std::int32_t, std::string> Client::post(const char* url_, const std::s
     }
     std::string retval;
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_WRITEDATA, &retval));
+    NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_HEADERDATA, &_cbs));
 
     long http_code = 0;
     NSTL_CURL_CHECK(::curl_easy_perform(_curl.get()));
@@ -210,6 +248,23 @@ std::string_view Client::error_view() const
 
 void Client::reset() { ::curl_easy_reset(_curl.get()); }
 void Client::reset_hdrs() { _headers.reset(); }
+
+HeaderLine Client::setHdrCb(HeaderLine cb_) { return std::exchange(_cbs.line_cb, std::move(cb_)); }
+
+void Client::minimumBandwidth(const std::chrono::seconds check_period_, const std::uint32_t bandwidth_)
+{
+    NSTL2_THROW_EXCEPTION_IF(check_period_ < std::chrono::seconds::zero(), "Check period cannot be negative");
+    if (check_period_ == std::chrono::seconds::zero() || bandwidth_ == 0)
+    {
+        _bw_period = 0;
+        _bw_speed = 0;
+    }
+    else
+    {
+        _bw_period = static_cast<long>(check_period_.count());
+        _bw_speed = static_cast<long>(bandwidth_);
+    }
+}
 
 } // namespace nstl::http
 

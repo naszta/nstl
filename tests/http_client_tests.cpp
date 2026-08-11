@@ -3,14 +3,22 @@
 
 #include <gtest/gtest.h>
 
+#include <string>
+#include <vector>
+
 TEST(HttpClient, ClientTest)
 {
     ASSERT_TRUE(nstl::http::is_ssl_supported());
+    std::vector<std::string> headers;
     nstl::http::Client client{ true };
+    client.setHdrCb([&headers](const std::string_view hdr_line) {
+        headers.emplace_back(hdr_line.data(), hdr_line.size());
+    });
     const auto [code, text] = client.get("https://google.com");
     EXPECT_TRUE(nstl::http::is_http_success(code)) << code << " HTTP code is invalid";
     EXPECT_FALSE(text.empty());
     EXPECT_TRUE(client.error_view().empty());
+    EXPECT_FALSE(headers.empty());
 }
 
 TEST(HttpClient, UrlTest)

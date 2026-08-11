@@ -4,6 +4,7 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <regex>
 #include <string>
@@ -34,12 +35,25 @@ bool is_http_success(std::int32_t status_code_);
 // is SSL supported
 bool is_ssl_supported();
 
+using HeaderLine = std::function<void(std::string_view line_)>;
+
+struct ClientCbs
+{
+    void line(const char* data_, size_t size_) const;
+    HeaderLine line_cb;
+};
+
 class Client
 {
     static constexpr const size_t error_size = 256;
     std::array<char, error_size> _error;
     curl_ptr _curl;
     curl_headers_ptr _headers;
+    ClientCbs _cbs;
+
+    // less then 10 kB/s for more than 10 seconds
+    long _bw_period{ 10 };
+    long _bw_speed{ 10000 };
 
 public:
     using duration = std::chrono::milliseconds;
@@ -66,6 +80,11 @@ public:
     void reset_hdrs();
 
     std::string_view error_view() const;
+
+    HeaderLine setHdrCb(HeaderLine cb_);
+
+    void minimumBandwidth(std::chrono::seconds check_period_ = std::chrono::seconds::zero(),
+                          std::uint32_t bandwidth_ = 0);
 
 private:
     void _common(const char* url_, duration timeout_, bool verify_);

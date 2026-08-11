@@ -1,4 +1,5 @@
 #include "http_client.hpp"
+#include "compiler.hpp"
 #include "exception.hpp"
 #include "logging.hpp"
 #include "scope_exit.hpp"
@@ -37,6 +38,7 @@ int my_trace(CURL* /* curl*/, const curl_infotype type, const char* data, size_t
 {
     const std::string_view data_view_base{ data, size };
     const auto data_view = right_trim_view(data_view_base);
+NSTL_WRN_SWITCH_ENUM_PUSH
     switch (type)
     {
     case CURLINFO_TEXT:
@@ -63,6 +65,7 @@ int my_trace(CURL* /* curl*/, const curl_infotype type, const char* data, size_t
     default:
         return 0;
     }
+NSTL_WRN_SWITCH_ENUM_POP
 }
 } // namespace
 

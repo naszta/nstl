@@ -26,16 +26,8 @@ SET(nstltestSrcs
   memory_tests.cpp
   base64_tests.cpp
   vector_tests.cpp
+  http_client_tests.cpp
 )
-
-if (NSTL_USING_CURL)
-  list(APPEND nstltestSrcs http_client_tests.cpp)
-  add_compile_definitions(NSTL_USING_CURL)
-endif()
-
-if (NSTL_USING_HH_DATE)
-  add_compile_definitions(NSTL_USING_HH_DATE)
-endif()
 
 ADD_EXECUTABLE(nstltest ${nstltestSrcs})
 

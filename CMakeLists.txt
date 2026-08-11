@@ -34,13 +34,30 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(BOOST_ENABLE_CMAKE ON)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
-set(NSTL_USING_CURL ON CACHE BOOL "Adding curl module")
-
 include(FetchContent)
 
+if (WIN32)
+  set(NSTL_USING_OPENSSL OFF CACHE BOOL "")
+else()
+  set(NSTL_USING_OPENSSL ON CACHE BOOL "")
+endif()
+
+try_compile(NSTL_USING_STD_CHRONO
+  ${CMAKE_CURRENT_BINARY_DIR}/temp
+  ${CMAKE_CURRENT_SOURCE_DIR}/modules/try_compile/chrono_has_tzone.cpp
+  OUTPUT_VARIABLE NSTL_USING_STD_CHRONO_OUT)
+
+MESSAGE(STATUS "Using C++20 std::chrono: ${NSTL_USING_STD_CHRONO}")
+
+set(ENABLE_CURL_MANUAL OFF CACHE BOOL "" FORCE)
+set(BUILD_LIBCURL_DOCS OFF CACHE BOOL "" FORCE)
+set(TBB_TEST OFF CACHE BOOL "" FORCE)
 if(LINUX)
   find_package(Boost COMPONENTS headers serialization program_options)
-else()
+  find_package(CURL COMPONENTS HTTPS SSL)
+  find_package(TBB REQUIRED)
+  find_package(GTest REQUIRED)
+else(LINUX)
   FetchContent_Declare(
     Boost
     GIT_REPOSITORY https://github.com/boostorg/boost.git
@@ -50,51 +67,7 @@ else()
     EXCLUDE_FROM_ALL
   )
   FetchContent_MakeAvailable(Boost)
-endif()
 
-if (NSTL_USING_CURL)
-  set(ENABLE_CURL_MANUAL OFF CACHE BOOL "" FORCE)
-  set(BUILD_LIBCURL_DOCS OFF CACHE BOOL "" FORCE)
-  if (WIN32)
-    set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
-    set(CURL_USE_LIBPSL OFF CACHE BOOL "" FORCE)
-    set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
-    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(BUILD_STATIC_CURL ON CACHE BOOL "" FORCE)
-    FetchContent_Declare(CURL
-	    URL https://curl.se/download/curl-8.21.0.tar.gz
-	    DOWNLOAD_EXTRACT_TIMESTAMP true
-    )
-    FetchContent_MakeAvailable(CURL)
-  else()
-    find_package(CURL COMPONENTS HTTPS SSL)
-  endif()
-endif()
-
-if (WIN32)
-  set(NSTL_USING_OPENSSL OFF CACHE BOOL "")
-else()
-  set(NSTL_USING_OPENSSL ON CACHE BOOL "")
-endif()
-
-if (APPLE)
-  set(NSTL_USING_HH_DATE ON CACHE BOOL "")
-else()
-  set(NSTL_USING_HH_DATE OFF CACHE BOOL "")
-endif()
-
-# openssl
-if (NSTL_USING_OPENSSL)
-  find_package(OpenSSL REQUIRED)
-endif()
-
-# tbb
-# gtest
-set(TBB_TEST OFF CACHE BOOL "" FORCE)
-if(LINUX)
-  find_package(TBB REQUIRED)
-  find_package(GTest REQUIRED)
-else()
   FetchContent_Declare(
     TBB
     GIT_REPOSITORY https://github.com/uxlfoundation/oneTBB.git
@@ -114,33 +87,59 @@ else()
     EXCLUDE_FROM_ALL
   )
   FetchContent_MakeAvailable(GTest)
+
+  if(APPLE)
+    find_package(CURL COMPONENTS HTTPS SSL)
+  else(APPLE)
+    set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
+    set(CURL_USE_LIBPSL OFF CACHE BOOL "" FORCE)
+    set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(BUILD_STATIC_CURL ON CACHE BOOL "" FORCE)
+    FetchContent_Declare(CURL
+      URL https://curl.se/download/curl-8.21.0.tar.gz
+      DOWNLOAD_EXTRACT_TIMESTAMP true
+    )
+    FetchContent_MakeAvailable(CURL)
+  endif(APPLE)
+endif(LINUX)
+
+# openssl
+if (NSTL_USING_OPENSSL)
+  find_package(OpenSSL REQUIRED)
 endif()
 
 # hh date
-if (NSTL_USING_HH_DATE)
+if (NOT NSTL_USING_STD_CHRONO)
   set(USE_SYSTEM_TZ_DB ON CACHE BOOL "")
   set(BUILD_TZ_LIB ON CACHE BOOL "")
   set(COMPILE_WITH_C_LOCALE ON CACHE BOOL "")
 
+  add_compile_definitions(NSTL_USING_HH_DATE)
   add_subdirectory(modules/date)
 endif()
 
 if (MSVC)
   add_compile_options(/W4 /WX /Zc:__cplusplus)
   add_compile_definitions(_CRT_SECURE_NO_WARNINGS=1 NOMINMAX _WIN32_WINNT=0x0603 NTDDI_VERSION=NTDDI_WINBLUE)
-else()
-  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
-endif()
+else(MSVC)
+  add_compile_options(-Wall -Wextra -Wpedantic -Werror -Wmisleading-indentation -Wswitch-default -Wswitch-enum -Wold-style-cast)
+endif(MSVC)
 add_compile_definitions(
   $<$<CONFIG:RELEASE>:NDEBUG>
 )
 
-string(TOLOWER "${CMAKE_CXX_COMPILER_ID}" COMPILER_ID)
-if (COMPILER_ID STREQUAL "clang")
-    set(IS_CLANG_BUILD ON)
-else ()
-    set(IS_CLANG_BUILD OFF)
-endif ()
+if(LINUX)
+  try_compile(HAVE_BACKTRACE ${CMAKE_CURRENT_BINARY_DIR}/temp ${CMAKE_CURRENT_SOURCE_DIR}/modules/try_compile/backtrace_is_around.cpp LINK_LIBRARIES backtrace OUTPUT_VARIABLE HAVE_BACKTRACE_OUT)
+else(LINUX)
+  set(HAVE_BACKTRACE OFF)
+  set(HAVE_BACKTRACE_OUT "Feature is Linux only")
+endif(LINUX)
+if (HAVE_BACKTRACE)
+  message(STATUS "HAVE_BACKTRACE: ${HAVE_BACKTRACE}")
+else(HAVE_BACKTRACE)
+  message(STATUS "HAVE_BACKTRACE: ${HAVE_BACKTRACE} - ${HAVE_BACKTRACE_OUT}")
+endif(HAVE_BACKTRACE)
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}

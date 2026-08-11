@@ -9,6 +9,7 @@ SET(nstllibHdrs
   nstl/backtrace.hpp
   nstl/base64.hpp
   nstl/c_timezone.hpp
+  nstl/compiler.hpp
   nstl/datahash_fwd.hpp
   nstl/datahash.hpp
   nstl/dead_lock_detect.hpp
@@ -16,6 +17,7 @@ SET(nstllibHdrs
   nstl/env_var_raii.hpp
   nstl/exception.hpp
   nstl/global_init.hpp
+  nstl/http_client.hpp
   nstl/logging.hpp
   nstl/macros.hpp
   nstl/memory.hpp
@@ -39,16 +41,17 @@ SET(nstllibSrcs
   nstl/env_var_raii.cpp
   nstl/exception.cpp
   nstl/global_init.cpp
+  nstl/http_client.cpp
   nstl/logging.cpp
   nstl/signal_barrier_common.cpp
   nstl/temp_dir.cpp
 )
 
 if(LINUX)
-  if (IS_CLANG_BUILD)
-    list(APPEND nstllibSrcs nstl/signal_barrier_linux.cpp nstl/backtrace_common.cpp)
-  else ()
+  if (HAVE_BACKTRACE)
     list(APPEND nstllibSrcs nstl/signal_barrier_linux.cpp nstl/backtrace_linux.cpp)
+  else ()
+    list(APPEND nstllibSrcs nstl/signal_barrier_linux.cpp nstl/backtrace_common.cpp)
   endif()
 elseif(WIN32)
   list(APPEND nstllibSrcs nstl/signal_barrier.cpp nstl/backtrace_win32.cpp)
@@ -65,28 +68,21 @@ endif()
 
 set(nstllib_private_dependencies
   TBB::tbb
+  CURL::libcurl
 )
-
-if (NSTL_USING_CURL)
-  list(APPEND nstllibHdrs nstl/http_client.hpp)
-  list(APPEND nstllibSrcs nstl/http_client.cpp)
-  add_compile_definitions(NSTL_USING_CURL)
-  list(APPEND nstllib_private_dependencies CURL::libcurl)
-endif()
 
 set(nstllib_public_dependencies
   Boost::headers Boost::serialization
 )
 
 if(LINUX)
-  if (NOT IS_CLANG_BUILD)
+  if (HAVE_BACKTRACE)
     list(APPEND nstllib_public_dependencies backtrace)
   endif()
 endif()
 
-if (NSTL_USING_HH_DATE)
+if (NOT NSTL_USING_STD_CHRONO)
   list(APPEND nstllib_public_dependencies date::date date::date-tz)
-  add_compile_definitions(NSTL_USING_HH_DATE)
 endif()
 
 if (NSTL_USING_OPENSSL)

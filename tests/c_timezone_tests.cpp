@@ -1,4 +1,5 @@
 #include <nstl/c_timezone.hpp>
+#include <nstl/compiler.hpp>
 
 #include <gtest/gtest.h>
 
@@ -6,8 +7,10 @@
 #include <filesystem>
 
 #ifdef NSTL_USING_HH_DATE
+NSTL_WRN_DATE_PUSH
 #include <date/date.h>
 #include <date/tz.h>
+NSTL_WRN_DATE_POP
 #else
 namespace date = std::chrono;
 #endif

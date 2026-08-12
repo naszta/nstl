@@ -1,6 +1,8 @@
 #ifndef _NSTL_C_TIMEZONE
 #define _NSTL_C_TIMEZONE 1
 
+#include <nstl/compiler.hpp>
+
 #include <chrono>
 #include <ctime>
 #include <string>
@@ -8,8 +10,10 @@
 #include <type_traits>
 
 #ifdef NSTL_USING_HH_DATE
+NSTL_WRN_DATE_PUSH
 #include <date/date.h>
 #include <date/tz.h>
+NSTL_WRN_DATE_POP
 #else
 namespace date = std::chrono;
 #endif

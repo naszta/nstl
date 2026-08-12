@@ -19,7 +19,11 @@ TEST(ParseView, Bool)
 
 using SignedIntegers = ::testing::Types<std::int16_t, std::int32_t, std::int64_t>;
 using UnsignedIntegers = ::testing::Types<std::uint16_t, std::uint32_t, std::uint64_t>;
+#ifdef __APPLE__
+using FloatingPoints = ::testing::Types<float, double>;
+#else
 using FloatingPoints = ::testing::Types<float, double, long double>;
+#endif
 
 template <typename Type> struct IntTests : public ::testing::Test
 {

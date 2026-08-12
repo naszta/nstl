@@ -1,6 +1,7 @@
 #ifndef _NSTL_LOGGING
 #define _NSTL_LOGGING 1
 
+#include <nstl/compiler.hpp>
 #include <nstl/safe_basename.hpp>
 
 #include <cstdint>
@@ -16,7 +17,9 @@
 #include <type_traits>
 
 #ifdef NSTL_USING_HH_DATE
+NSTL_WRN_DATE_PUSH
 #include <date/tz.h>
+NSTL_WRN_DATE_POP
 #else
 namespace date = std::chrono;
 #endif

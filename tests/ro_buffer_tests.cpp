@@ -4,6 +4,7 @@
 #include <span>
 
 #include <nstl/ro_buffer.hpp>
+#include <nstl/compiler.hpp>
 
 #include <gtest/gtest.h>
 
@@ -14,8 +15,10 @@
 #include <string_view>
 
 #ifdef NSTL_USING_HH_DATE
+NSTL_WRN_DATE_PUSH
 #include <date/date.h>
 #include <date/tz.h>
+NSTL_WRN_DATE_POP
 #else
 namespace date = std::chrono;
 #endif
@@ -140,7 +143,12 @@ TEST(RoBuffer, TimeStamp)
     nstl::ro_buffer buffer{ stamp_view };
     std::istream stream{ &buffer };
     date::sys_time<std::chrono::milliseconds> target;
+
+#ifdef NSTL_USING_HH_DATE
+    if (date::from_stream(stream, "%FT%TZ", target))
+#else
     if (stream >> date::parse("%FT%TZ", target))
+#endif
     {
         const auto epoch_millis = target.time_since_epoch().count();
         EXPECT_EQ(epoch_millis, 1785855720125LL);

@@ -36,6 +36,7 @@ SET(nstllibHdrs
 
 SET(nstllibSrcs
   nstl/c_timezone.cpp
+  nstl/math.cpp
   nstl/datahash.cpp
   nstl/dead_lock_detect.cpp
   nstl/dns_tools.cpp
@@ -100,6 +101,10 @@ ADD_LIBRARY(nstllib ${nstllibHdrs} ${nstllibSrcs})
 
 target_compile_features(nstllib PUBLIC cxx_std_20)
 target_include_directories(nstllib PUBLIC ${nstllib_SOURCE_DIR} ${Boost_INCLUDE_DIRS})
+
+if (NOT MSVC)
+  target_compile_options(nstllib PRIVATE -frounding-math)
+endif()
 
 if (WIN32)
   list(APPEND nstllib_private_dependencies Ws2_32.lib Dnsapi.lib dbghelp.lib)

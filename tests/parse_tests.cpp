@@ -160,3 +160,20 @@ TEST(MathTest, MixedFalse)
     EXPECT_FALSE(oper(std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<float>::signaling_NaN()));
     EXPECT_FALSE(oper(std::numeric_limits<double>::signaling_NaN(), std::numeric_limits<float>::quiet_NaN()));
 }
+
+TYPED_TEST(FloatTests, Round)
+{
+    using value_type = typename TestFixture::value_type;
+
+    EXPECT_EQ(nstl::math::round_val<std::int32_t>(value_type{ 0.99 }), 1);
+    EXPECT_EQ(nstl::math::round_val<std::int32_t>(value_type{ -1.99 }), -2);
+    EXPECT_EQ(nstl::math::round_val<std::uint32_t>(value_type{ 0.99 }), 1);
+    EXPECT_THROW(nstl::math::round_val<std::uint32_t>(value_type{ -1.99 }), std::exception);
+
+    EXPECT_EQ(nstl::math::round_floor<std::int32_t>(value_type{ 0.5 }), 0);
+    EXPECT_EQ(nstl::math::round_floor<std::int32_t>(value_type{ -0.5 }), 0);
+    EXPECT_EQ(nstl::math::round_ceil<std::int32_t>(value_type{ 0.5 }), 1);
+    EXPECT_EQ(nstl::math::round_ceil<std::int32_t>(value_type{ -0.5 }), -1);
+
+    EXPECT_THROW(nstl::math::round_val<std::int32_t>(std::numeric_limits<value_type>::quiet_NaN()), std::exception);
+}

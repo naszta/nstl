@@ -63,6 +63,8 @@ public:
     ~Client();
     Client(const Client&) = delete;
     Client& operator=(const Client&) = delete;
+    Client(Client&& other_) noexcept;
+    Client& operator=(Client&& other_) noexcept;
 
     std::pair<std::int32_t, std::string> get(const char* url_, duration timeout_ = default_timeout,
                                              bool verify_ = true);
@@ -85,6 +87,8 @@ public:
 
     void minimumBandwidth(std::chrono::seconds check_period_ = std::chrono::seconds::zero(),
                           std::uint32_t bandwidth_ = 0);
+
+    bool valid() const { return !!_curl; }
 
 private:
     void _common(const char* url_, duration timeout_, bool verify_);

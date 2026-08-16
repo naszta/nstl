@@ -78,3 +78,14 @@ TEST(TempDir, NameReusableAfterDestruction)
     nstl::temp_dir second{ parent.path(), name };
     EXPECT_TRUE(fs::exists(second.path()));
 }
+
+TEST(TempDir, TempFile)
+{
+    fs::path target;
+    {
+        nstl::temp_file file;
+        target = file.path();
+        EXPECT_TRUE(fs::exists(target)) << target << " never created";
+    }
+    EXPECT_FALSE(fs::exists(target));
+}

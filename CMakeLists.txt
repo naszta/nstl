@@ -124,7 +124,8 @@ if (MSVC)
   add_compile_options(/W4 /WX /Zc:__cplusplus)
   add_compile_definitions(_CRT_SECURE_NO_WARNINGS=1 NOMINMAX _WIN32_WINNT=0x0603 NTDDI_VERSION=NTDDI_WINBLUE)
 else(MSVC)
-  add_compile_options(-Wall -Wextra -Wpedantic -Werror -Wmisleading-indentation -Wswitch-default -Wswitch-enum -Wold-style-cast)
+  add_compile_options(-Wall -Wextra -Wpedantic -Werror -Wmisleading-indentation -Wswitch-default -Wswitch-enum -Wold-style-cast -fstack-protector-strong)
+  add_compile_definitions(_FORTIFY_SOURCE=2)
 endif(MSVC)
 add_compile_definitions(
   $<$<CONFIG:RELEASE>:NDEBUG>

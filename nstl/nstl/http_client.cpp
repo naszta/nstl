@@ -114,6 +114,24 @@ Client::Client(const bool verbose_) : _curl{ ::curl_easy_init() }
 
 Client::~Client() = default;
 
+Client::Client(Client&& other_) noexcept
+    : _curl{ std::move(other_._curl) }, _headers{ std::move(other_._headers) }, _cbs{std::move(other_._cbs)}
+{
+    std::memcpy(_error.data(), other_._error.data(), _error.size());
+}
+
+Client& Client::operator = (Client&& other_) noexcept
+{
+    if (this != &other_)
+    {
+        std::memcpy(_error.data(), other_._error.data(), _error.size());
+        _curl = std::move(other_._curl);
+        _headers = std::move(other_._headers);
+        _cbs = std::move(other_._cbs);
+    }
+    return *this;
+}
+
 bool is_http_success(const std::int32_t status_code_) { return 200 <= status_code_ && status_code_ < 300; }
 
 bool is_ssl_supported()
@@ -124,6 +142,7 @@ bool is_ssl_supported()
 
 void Client::_common(const char* url_, const duration timeout_, const bool verify_)
 {
+    NSTL2_THROW_EXCEPTION_IF(!_curl, "curl pointer is nullptr: we should use instance after move");
     NSTL2_THROW_EXCEPTION_IF(!url_, "URL pointer is nullptr!");
     _error[0] = '\0';
     if (duration::zero() < timeout_)
@@ -194,6 +213,7 @@ std::pair<std::int32_t, std::string> Client::post(const char* url_, const std::s
 
 bool Client::add_header(const char* header_)
 {
+    NSTL2_THROW_EXCEPTION_IF(!_curl, "curl pointer is nullptr: we should use instance after move");
     NSTL2_THROW_EXCEPTION_IF(!header_, "header is nullptr");
     auto chunk = ::curl_slist_append(_headers.get(), header_);
     NSTL2_THROW_EXCEPTION_IF(!chunk, "curl_slist_append failed");
@@ -204,6 +224,7 @@ bool Client::add_header(const char* header_)
 
 std::string Client::url_encode(const std::string_view data_) const
 {
+    NSTL2_THROW_EXCEPTION_IF(!_curl, "curl pointer is nullptr: we should use instance after move");
     if (data_.empty())
     {
         return std::string{};
@@ -223,6 +244,7 @@ std::string Client::url_encode(const std::string_view data_) const
 
 std::string Client::url_decode(const std::string_view data_) const
 {
+    NSTL2_THROW_EXCEPTION_IF(!_curl, "curl pointer is nullptr: we should use instance after move");
     if (data_.empty())
     {
         return std::string{};
@@ -243,16 +265,26 @@ std::string Client::url_decode(const std::string_view data_) const
 
 std::string_view Client::error_view() const
 {
+    NSTL2_THROW_EXCEPTION_IF(!_curl, "curl pointer is nullptr: we should use instance after move");
     return std::string_view{ _error.data(), strnlen(_error.data(), _error.size()) };
 }
 
-void Client::reset() { ::curl_easy_reset(_curl.get()); }
+void Client::reset()
+{
+    NSTL2_THROW_EXCEPTION_IF(!_curl, "curl pointer is nullptr: we should use instance after move");
+    ::curl_easy_reset(_curl.get());
+}
 void Client::reset_hdrs() { _headers.reset(); }
 
-HeaderLine Client::setHdrCb(HeaderLine cb_) { return std::exchange(_cbs.line_cb, std::move(cb_)); }
+HeaderLine Client::setHdrCb(HeaderLine cb_)
+{
+    NSTL2_THROW_EXCEPTION_IF(!_curl, "curl pointer is nullptr: we should use instance after move");
+    return std::exchange(_cbs.line_cb, std::move(cb_));
+}
 
 void Client::minimumBandwidth(const std::chrono::seconds check_period_, const std::uint32_t bandwidth_)
 {
+    NSTL2_THROW_EXCEPTION_IF(!_curl, "curl pointer is nullptr: we should use instance after move");
     NSTL2_THROW_EXCEPTION_IF(check_period_ < std::chrono::seconds::zero(), "Check period cannot be negative");
     if (check_period_ == std::chrono::seconds::zero() || bandwidth_ == 0)
     {

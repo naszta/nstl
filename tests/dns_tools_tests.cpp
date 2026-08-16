@@ -1,4 +1,5 @@
 #include <nstl/dns_tools.hpp>
+#include <nstl/logging.hpp>
 
 #include <gtest/gtest.h>
 
@@ -100,6 +101,7 @@ TEST(DnsTools, Svcb)
     }
     EXPECT_EQ(oss_https.view(), ". 1 [ALPNS={\"h3\",\"h2\"} IPV4S={104.18.28.7,104.18.29.7} "
                                 "IPV6S={2606:4700::6812:1c07,2606:4700::6812:1d07}]\n");
+    NSTL_INFO("HTTPS request passed " << oss_https.view());
 
     const auto https2_opt = nstl::net::svcb_name("https.tepj.be", nstl::net::SvcbType::Https);
     ASSERT_TRUE(https2_opt.has_value());
@@ -109,6 +111,7 @@ TEST(DnsTools, Svcb)
         oss_https2 << item << "\n";
     }
     EXPECT_EQ(oss_https2.view(), "naszta.london 42 [ALPNS={\"h2\",\"h3\"} PORT=443]\n");
+    NSTL_INFO("HTTPS request passed " << oss_https2.view());
 
     const auto svcb_opt = nstl::net::svcb_name("svcb.tepj.be");
     ASSERT_TRUE(svcb_opt.has_value());
@@ -118,6 +121,7 @@ TEST(DnsTools, Svcb)
         oss_svcb << item << "\n";
     }
     EXPECT_EQ(oss_svcb.view(), "naszta.london 43 [ALPNS={\"h2\",\"h3\"} PORT=853]\n");
+    NSTL_INFO("SVCB request passed " << oss_svcb.view());
 }
 
 TEST(DnsTools, IpTools)

@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstdint>
 
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
 #include <atomic>
@@ -123,10 +124,7 @@ struct Data
         wait_for.push_back(hpid);
     }
 
-    PHANDLE data()
-    {
-        return wait_for.data();
-    }
+    PHANDLE data() { return wait_for.data(); }
 
     DWORD size() const { return static_cast<DWORD>(wait_for.size()); }
 
@@ -207,7 +205,6 @@ struct Data
     int exit_code{ EXIT_SUCCESS };
 };
 
-
 void CALLBACK TimerRoutine(void* data_, BOOLEAN /* TimerOrWaitFired */)
 {
     NSTL_THROW_EXCEPTION_IF(!data_, std::runtime_error, "data is nullptr");
@@ -231,9 +228,10 @@ int main(int argc_, char** argv_, char** envv_)
     NSTL_THROW_EXCEPTION_IF(argc_ < 3, std::invalid_argument, "At least 3 args expected");
     const auto threads = nstl::parse_view<std::uint32_t>(argv_[1]);
     NSTL_THROW_EXCEPTION_IF(threads == 0, std::runtime_error, "at least one thread must be set");
-    NSTL_THROW_EXCEPTION_IF(!::SetConsoleCtrlHandler(ConsoleHandler, TRUE), std::runtime_error , "SetConsoleCtrlHandler failed");
+    NSTL_THROW_EXCEPTION_IF(!::SetConsoleCtrlHandler(ConsoleHandler, TRUE), std::runtime_error,
+                            "SetConsoleCtrlHandler failed");
 
-    Data app_data{threads};
+    Data app_data{ threads };
 
     for (std::uint32_t idx = 0; idx < threads; ++idx)
     {
@@ -247,8 +245,7 @@ int main(int argc_, char** argv_, char** envv_)
         sa_info.cb = sizeof(STARTUPINFOA);
 
         if (::CreateProcessA(nullptr, cmdline.get(), nullptr, nullptr, FALSE,
-                             NORMAL_PRIORITY_CLASS | CREATE_NEW_PROCESS_GROUP, envvars.get(),
-                             nullptr, &sa_info, &pi))
+                             NORMAL_PRIORITY_CLASS | CREATE_NEW_PROCESS_GROUP, envvars.get(), nullptr, &sa_info, &pi))
         {
             app_data.push_back(pi.hProcess, pi.hThread, pi.dwProcessId);
         }

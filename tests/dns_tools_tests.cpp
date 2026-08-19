@@ -101,17 +101,48 @@ TEST(DnsTools, Svcb)
     EXPECT_EQ(oss_https.view(), ". 1 [ALPNS={\"h3\",\"h2\"} IPV4S={104.18.28.7,104.18.29.7} "
                                 "IPV6S={2606:4700::6812:1c07,2606:4700::6812:1d07}]\n");
 
-    // Enable when _dns.resolver.arpa is around
-    /*/
-    const auto svcb_opt = nstl::net::svcb_name("_dns.resolver.arpa");
+    const auto https2_opt = nstl::net::svcb_name("https.tepj.be", nstl::net::SvcbType::Https);
+    ASSERT_TRUE(https2_opt.has_value());
+    std::ostringstream oss_https2;
+    for (const auto& item : https2_opt.value())
+    {
+        oss_https2 << item << "\n";
+    }
+    EXPECT_EQ(oss_https2.view(), "naszta.london 42 [ALPNS={\"h2\",\"h3\"} PORT=443]\n");
+
+    const auto svcb_opt = nstl::net::svcb_name("svcb.tepj.be");
     ASSERT_TRUE(svcb_opt.has_value());
     std::ostringstream oss_svcb;
     for (const auto& item : svcb_opt.value())
     {
         oss_svcb << item << "\n";
     }
-    EXPECT_EQ(oss_svcb.view(), "dns.controld.com 1 [ALPNS={\"h3\",\"h2\",\"http/1.1\"} PORT=443 DOH=\"/1vuatasnf7m{?dns}\"]\n"
-                               "1vuatasnf7m.dns.controld.com 2 [ALPNS={\"dot\"} PORT=853]\n"
-                               "1vuatasnf7m.dns.controld.com 3 [ALPNS={\"doq\"} PORT=853]\n");
-    //*/
+    EXPECT_EQ(oss_svcb.view(), "naszta.london 43 [ALPNS={\"h2\",\"h3\"} PORT=853]\n");
+}
+
+TEST(DnsTools, IpTools)
+{
+    {
+        const auto address_v6 = nstl::net::parseIpAddress("2606:4700::6812:1c07");
+        const auto ipv6ptr = std::get_if<nstl::net::ipv6_addr>(&address_v6);
+        ASSERT_NE(ipv6ptr, nullptr);
+        EXPECT_EQ(nstl::net::writeIpAddress(*ipv6ptr), "2606:4700::6812:1c07");
+    }
+    {
+        const auto address_v4 = nstl::net::parseIpAddress("192.168.1.254");
+        const auto ipv4ptr = std::get_if<nstl::net::ipv4_addr>(&address_v4);
+        ASSERT_NE(ipv4ptr, nullptr);
+        EXPECT_EQ(nstl::net::writeIpAddress(*ipv4ptr), "192.168.1.254");
+    }
+    {
+        const auto tricky = nstl::net::parseIpAddress("0::ffff:0101:0101");
+        const auto trickyptr4 = std::get_if<nstl::net::ipv4_addr>(&tricky);
+        const auto trickyptr6 = std::get_if<nstl::net::ipv6_addr>(&tricky);
+        EXPECT_EQ(trickyptr4, nullptr);
+        ASSERT_NE(trickyptr6, nullptr);
+        const auto ip4val = nstl::net::is_ipv4(*trickyptr6);
+        ASSERT_TRUE(ip4val.has_value());
+        EXPECT_EQ(nstl::net::writeIpAddress(*ip4val), "1.1.1.1");
+        EXPECT_EQ(nstl::net::writeIpAddress(*trickyptr6), "::ffff:1.1.1.1");
+    }
 }

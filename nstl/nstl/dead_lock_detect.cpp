@@ -1,6 +1,7 @@
 #include "dead_lock_detect.hpp"
 #include "exception.hpp"
 #include "logging.hpp"
+#include "unlock_guard.hpp"
 
 namespace nstl
 {
@@ -31,7 +32,6 @@ bool DeadLockChecker::_check()
             if (_timeout < ptr->elapsed())
             {
                 NSTL_ERROR("Dead lock detected after " << _timeout.count() << " ns");
-                _alerter();
                 retval = true;
             }
         }
@@ -54,8 +54,14 @@ DeadLockChecker::~DeadLockChecker() { this->stop(); }
 
 bool DeadLockChecker::check()
 {
-    std::lock_guard lg{ _lock };
-    return this->_check();
+    std::unique_lock ul{ _lock };
+    if (this->_check())
+    {
+        ul.unlock();
+        _alerter();
+        return true;
+    }
+    return false;
 }
 
 std::shared_ptr<DeadLockThreadExecutor> DeadLockChecker::addCheckedThread()
@@ -73,7 +79,11 @@ void DeadLockChecker::runner(const std::chrono::nanoseconds period_)
     while (_running)
     {
         _cond.wait_for(ul, period_);
-        _check();
+        if (_check())
+        {
+            unlock_guard ulg{ul};
+            _alerter();
+        }
     }
 }
 

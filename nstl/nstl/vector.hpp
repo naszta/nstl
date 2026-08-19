@@ -23,19 +23,31 @@ class vector
     size_t _size{ 0 };
     size_t _capacity{ 0 };
 
-    void _auto_capacity(const size_t needed_)
+    Type* _mem_reserve(const size_t new_capacity_)
+    {
+        Type* ptr = reinterpret_cast<Type*>(std::realloc(_ptr, new_capacity_ * sizeof(Type)));
+        if (ptr == nullptr) [[unlikely]]
+        {
+            throw std::bad_alloc{};
+        }
+        _ptr = ptr;
+        _capacity = new_capacity_;
+        return ptr;
+    }
+
+    Type* _auto_capacity(const size_t needed_)
     {
         if (needed_ <= _capacity) [[likely]]
         {
-            return;
+            return _ptr;
         }
         if (needed_ < 16)
         {
-            this->reserve(16);
+            return this->_mem_reserve(16);
         }
         else
         {
-            this->reserve(std::max(needed_, _capacity * 2));
+            return this->_mem_reserve(std::max(needed_, _capacity * 2));
         }
     }
 
@@ -102,16 +114,16 @@ public:
     void push_back(const Type& val_)
     {
         const auto new_size = _size + 1;
-        this->_auto_capacity(new_size);
-        new (_ptr + _size) Type{ val_ };
+        auto ptr = this->_auto_capacity(new_size);
+        new (ptr + _size) Type{ val_ };
         _size = new_size;
     }
 
     void push_back(Type&& val_)
     {
         const auto new_size = _size + 1;
-        this->_auto_capacity(new_size);
-        new (_ptr + _size) Type{ std::move(val_) };
+        auto ptr = this->_auto_capacity(new_size);
+        new (ptr + _size) Type{ std::move(val_) };
         _size = new_size;
     }
 
@@ -133,20 +145,7 @@ public:
         _ptr = nullptr;
     }
 
-    void reserve(const size_t new_capacity_)
-    {
-        if (new_capacity_ <= _capacity)
-        {
-            return;
-        }
-        Type* ptr = reinterpret_cast<Type*>(std::realloc(_ptr, new_capacity_ * sizeof(Type)));
-        if (ptr == nullptr) [[unlikely]]
-        {
-            throw std::bad_alloc{};
-        }
-        _ptr = ptr;
-        _capacity = new_capacity_;
-    }
+    void reserve(const size_t new_capacity_) { _auto_capacity(new_capacity_); }
 
     reference at(const size_type idx)
     {

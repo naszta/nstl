@@ -57,7 +57,7 @@ DnsRecordPtr get_results_ex(const char* name_, WORD type_)
 DnsRecordPtr get_results(const char* name_, WORD type_)
 {
     NSTL2_THROW_EXCEPTION_IF(!name_, "name_ is nullptr");
-    PDNS_RECORDA result; 
+    PDNS_RECORDA result = nullptr;
     const DNS_STATUS status = ::DnsQuery_UTF8(name_, type_, DNS_QUERY_STANDARD, nullptr, &result, nullptr);
     DnsRecordPtr retval{ std::exchange(result, nullptr) };
     if (status)

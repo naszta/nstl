@@ -175,33 +175,16 @@ std::ostream& operator<<(std::ostream& os_, const gen_svcb& item)
 std::variant<std::monostate, ipv4_addr, ipv6_addr> parseIpAddress(const char* ipaddr_)
 {
     NSTL2_THROW_EXCEPTION_IF(!ipaddr_, "input is nullptr");
-    struct addrinfo hints;
-    std::memset(&hints, 0, sizeof(addrinfo));
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM; // dedupe results
-    hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
-    addrinfo* result_raw = nullptr;
-    const auto success = ::getaddrinfo(ipaddr_, nullptr, &hints, &result_raw);
-    std::unique_ptr<addrinfo, AddrinfoDeleter> result{ std::exchange(result_raw, nullptr) };
-    if (success != 0)
+    ipv4_addr ipv4 = 0;
+    if (::inet_pton(AF_INET, ipaddr_, &ipv4) == 1)
     {
-        NSTL2_THROW_EXCEPTION_IF(success != host_not_found, "Issues on resolving " << ipaddr_);
-        return std::monostate{};
+        return ipv4;
     }
-    for (auto ptr = result.get(); ptr; ptr = ptr->ai_next)
+
+    ipv6_addr ipv6;
+    if (::inet_pton(AF_INET6, ipaddr_, ipv6.data()) == 1)
     {
-        if (ptr->ai_family == AF_INET)
-        {
-            ipv4_addr retval = 0;
-            std::memcpy(&retval, &reinterpret_cast<sockaddr_in*>(ptr->ai_addr)->sin_addr, 4);
-            return retval;
-        }
-        else if (ptr->ai_family == AF_INET6)
-        {
-            ipv6_addr retval;
-            std::memcpy(&retval, &reinterpret_cast<sockaddr_in6*>(ptr->ai_addr)->sin6_addr, 16);
-            return retval;
-        }
+        return ipv6;
     }
     return std::monostate{};
 }

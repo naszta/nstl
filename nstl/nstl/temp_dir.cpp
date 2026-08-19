@@ -6,6 +6,10 @@
 
 #include <cstdlib>
 
+#ifdef __linux__
+#include <sys/stat.h>
+#endif
+
 namespace fs = std::filesystem;
 
 namespace
@@ -66,6 +70,9 @@ temp_dir::temp_dir(const std::filesystem::path& parent_, const std::filesystem::
     : _target{ parent_ / name_ }, _owned{ fs::create_directories(_target) }
 {
     NSTL2_THROW_EXCEPTION_IF(!_owned, _target << " cannot be created");
+#ifdef __linux__
+    ::chmod(_target.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP);
+#endif
     NSTL_DEBUG(_target << " created");
 }
 

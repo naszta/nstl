@@ -10,7 +10,19 @@
 
 namespace nstl::bt
 {
-void backtrace_init() {}
+struct GlobalState
+{
+    HANDLE proc{ INVALID_HANDLE_VALUE };
+
+    GlobalState() : proc{ ::GetCurrentProcess() }
+    {
+        ::SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
+        ::SymInitialize(proc, NULL, TRUE);
+    }
+    ~GlobalState() { ::SymCleanup(proc); }
+};
+
+void backtrace_init() { static const GlobalState instance; }
 
 std::ostream& pr_backtrace(std::ostream& os_, const std::string_view func_, const std::string_view file_,
                            const int line_)
@@ -28,10 +40,6 @@ std::ostream& pr_backtrace(std::ostream& os_, const std::string_view func_, cons
     os_ << ":\n";
 
     HANDLE proc = ::GetCurrentProcess();
-    ::SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
-    ::SymInitialize(proc, NULL, TRUE);
-    const auto cleanup = on_scope_exit([&proc]() { ::SymCleanup(proc); });
-
 
     constexpr DWORD addr_size = 64;
     constexpr DWORD syms_size = 256;

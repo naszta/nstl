@@ -4,6 +4,7 @@
 #include <array>
 #include <iosfwd>
 #include <optional>
+#include <span>
 #include <string>
 #include <variant>
 #include <vector>
@@ -39,14 +40,17 @@ struct gen_srv
 std::optional<std::vector<gen_srv>> srv_name(const char* name_);
 std::optional<std::vector<gen_srv>> srv_name(const std::string& name_);
 
+using ipv4_addr = std::uint32_t;
+using ipv6_addr = std::array<std::uint8_t, 16>;
+
 using svcb_param = std::variant<
     std::monostate, // no default alpn
     std::vector<std::uint16_t>, // mandatory keys
     std::string, // doh path
     std::uint16_t, // port
     std::vector<std::string>, // alpns
-    std::vector<std::uint32_t>, // ipv4 addresses
-    std::vector<std::array<std::uint8_t, 16>> // ipv6 addresses
+    std::vector<ipv4_addr>, // ipv4 addresses
+    std::vector<ipv6_addr> // ipv6 addresses
 >;
 
 struct gen_svcb
@@ -66,6 +70,14 @@ enum class SvcbType : std::uint16_t
 
 std::optional<std::vector<gen_svcb>> svcb_name(const char* name_, SvcbType type_ = SvcbType::Svcb);
 std::optional<std::vector<gen_svcb>> svcb_name(const std::string& name_, SvcbType type_ = SvcbType::Svcb);
+
+std::variant<std::monostate, ipv4_addr, ipv6_addr> parseIpAddress(const char* ipaddr_);
+
+std::string writeIpAddress(const ipv4_addr& ip_);
+std::string writeIpAddress(const ipv6_addr& ip_);
+std::string writeIpAddress(std::span<const std::uint8_t> ip_);
+std::string writeIpAddress(const std::variant<ipv4_addr, ipv6_addr>& addr_);
+std::optional<ipv4_addr> is_ipv4(const ipv6_addr& addr_);
 } // namespace nstl::net
 
 #endif

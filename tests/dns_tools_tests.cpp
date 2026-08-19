@@ -88,3 +88,30 @@ TEST(DnsTools, Srv)
     EXPECT_EQ(front.weight, 50);
     EXPECT_EQ(front.address, "test.naszta.com");
 }
+
+TEST(DnsTools, Svcb)
+{
+    const auto https_opt = nstl::net::svcb_name("blog.cloudflare.com", nstl::net::SvcbType::Https);
+    ASSERT_TRUE(https_opt.has_value());
+    std::ostringstream oss_https;
+    for (const auto& item : https_opt.value())
+    {
+        oss_https << item << "\n";
+    }
+    EXPECT_EQ(oss_https.view(), ". 1 [ALPNS={\"h3\",\"h2\"} IPV4S={104.18.28.7,104.18.29.7} "
+                                "IPV6S={2606:4700::6812:1c07,2606:4700::6812:1d07}]\n");
+
+    // Enable when _dns.resolver.arpa is around
+    /*/
+    const auto svcb_opt = nstl::net::svcb_name("_dns.resolver.arpa");
+    ASSERT_TRUE(svcb_opt.has_value());
+    std::ostringstream oss_svcb;
+    for (const auto& item : svcb_opt.value())
+    {
+        oss_svcb << item << "\n";
+    }
+    EXPECT_EQ(oss_svcb.view(), "dns.controld.com 1 [ALPNS={\"h3\",\"h2\",\"http/1.1\"} PORT=443 DOH=\"/1vuatasnf7m{?dns}\"]\n"
+                               "1vuatasnf7m.dns.controld.com 2 [ALPNS={\"dot\"} PORT=853]\n"
+                               "1vuatasnf7m.dns.controld.com 3 [ALPNS={\"doq\"} PORT=853]\n");
+    //*/
+}

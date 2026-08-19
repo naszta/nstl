@@ -1,9 +1,11 @@
 #include "dns_tools.hpp"
 #include "exception.hpp"
+#include "range_print.hpp"
 
 #ifdef _WIN32
 #include <ws2tcpip.h>
 #else
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -13,6 +15,7 @@
 #include <cstring>
 #include <array>
 #include <memory>
+#include <ostream>
 #include <stdexcept>
 #include <utility>
 
@@ -78,4 +81,93 @@ std::optional<std::vector<mx_srv>> mx_name(const std::string& name_) { return mx
 std::optional<std::vector<std::string>> txt_name(const std::string& name_) { return txt_name(name_.c_str()); }
 std::optional<std::vector<std::string>> c_name(const std::string& name_) { return c_name(name_.c_str()); }
 std::optional<std::vector<gen_srv>> srv_name(const std::string& name_) { return srv_name(name_.c_str()); }
+std::optional<std::vector<gen_svcb>> svcb_name(const std::string& name_, const SvcbType type_)
+{
+    return svcb_name(name_.c_str(), type_);
+}
+
+namespace
+{
+void inet4_to_os(std::ostream& os_, std::uint32_t ip_)
+{
+    std::array<char, INET_ADDRSTRLEN> buffer;
+    const char* ptr = ::inet_ntop(AF_INET, &ip_, buffer.data(), buffer.size());
+    NSTL2_THROW_EXCEPTION_IF(!ptr, "inet_ntop failed");
+    const std::string_view ip_name{ ptr, strnlen(ptr, buffer.size()) };
+    os_ << ip_name;
+}
+
+void inet6_to_os(std::ostream& os_, const std::array<std::uint8_t, 16>& ip_)
+{
+    std::array<char, INET6_ADDRSTRLEN> buffer;
+    const char* ptr = ::inet_ntop(AF_INET6, ip_.data(), buffer.data(), buffer.size());
+    NSTL2_THROW_EXCEPTION_IF(!ptr, "inet_ntop failed");
+    const std::string_view ip_name{ ptr, strnlen(ptr, buffer.size()) };
+    os_ << ip_name;
+}
+
+struct param_visitor
+{
+    std::ostream& oss;
+    explicit param_visitor(std::ostream& os_) : oss{ os_ } {}
+
+    void operator()(const std::monostate&) const { oss << "NO_DEF_ALPN"; }
+    void operator()(const std::vector<std::uint16_t>& keys_) const { oss << "KEYS={" << range_print(keys_, ',') << '}'; }
+    void operator()(const std::string& doh_) const { oss << "DOH=\"" << doh_ << '\"'; }
+    void operator()(const std::uint16_t port_) const { oss << "PORT=" << port_; }
+    void operator()(const std::vector<std::string>& alpns_) const {
+        oss << "ALPNS={";
+        if (!alpns_.empty())
+        {
+            oss << '\"' << range_print(alpns_, "\",\"") << '\"';
+        }
+        oss << '}';
+    }
+    void operator()(const std::vector<std::uint32_t>& ipv4s_) const
+    {
+        oss << "IPV4S={";
+        if (auto itr = ipv4s_.cbegin(); itr != ipv4s_.cend())
+        {
+            inet4_to_os(oss, *itr);
+            while (++itr != ipv4s_.cend())
+            {
+                oss << ",";
+                inet4_to_os(oss, *itr);
+            }
+        }
+        oss << '}';
+    }
+    void operator()(const std::vector<std::array<std::uint8_t, 16>>& ipv4s_) const
+    {
+        oss << "IPV6S={";
+        if (auto itr = ipv4s_.cbegin(); itr != ipv4s_.cend())
+        {
+            inet6_to_os(oss, *itr);
+            while (++itr != ipv4s_.cend())
+            {
+                oss << ",";
+                inet6_to_os(oss, *itr);
+            }
+        }
+        oss << '}';
+    }
+};
+}
+
+std::ostream& operator<<(std::ostream& os_, const gen_svcb& item)
+{
+    os_ << item.address << ' ' << item.priority << " [";
+    if (auto itr = item.params.cbegin(); itr != item.params.cend())
+    {
+        const param_visitor visitor{ os_ };
+        std::visit(visitor, *itr);
+        while (++itr != item.params.cend())
+        {
+            os_ << ' ';
+            std::visit(visitor, *itr);
+        }
+    }
+    os_ << ']';
+    return os_;
+}
 } // namespace nstl::net

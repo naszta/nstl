@@ -19,6 +19,106 @@ namespace nstl::net
 {
 namespace
 {
+enum SvcParamKey : uint16_t {
+    KEY_MANDATORY   = 0,
+    KEY_ALPN        = 1,
+    KEY_NO_DEF_ALPN = 2,
+    KEY_PORT        = 3,
+    KEY_IPV4HINT    = 4,
+    KEY_ECH         = 5,
+    KEY_IPV6HINT    = 6,
+    KEY_DOH_PATH    = 7,
+};
+
+std::vector<svcb_param> resolve_params(const uint8_t* p, const uint8_t* end)
+{
+    std::vector<svcb_param> retval;
+    while (p + 4 <= end)
+    {
+        const std::uint16_t key = ns_get16(p);
+        const std::uint16_t len = ns_get16(p + 2);
+        p += 4;
+        if (end < p + len)
+        {
+            return retval;
+        }
+        const uint8_t* v = p;
+
+        switch (key)
+        {
+        case KEY_ALPN: {
+            std::vector<std::string> alpns;
+
+            const uint8_t* q = v;
+            const uint8_t* vend = v + len;
+            while (q < vend) {
+                const uint8_t l = *q++;
+                if (vend < q + l) { break; }
+                std::string value{reinterpret_cast<const char*>(q), l};
+                alpns.push_back(std::move(value));
+                q += l;
+            }
+            retval.emplace_back(std::move(alpns));
+            break;
+        }
+        case KEY_PORT:
+            if (len == 2)
+            {
+                std::uint16_t port = ns_get16(v);
+                retval.emplace_back(port);
+            }
+            break;
+        case KEY_MANDATORY:
+        {
+            std::vector<std::uint16_t> keys;
+            for (std::uint16_t idx = 0; idx < len; idx += 2)
+            {
+                keys.push_back(ns_get16(v + idx));
+            }
+            retval.emplace_back(std::move(keys));
+            break;
+        }
+        case KEY_IPV4HINT:
+        {
+            std::vector<std::uint32_t> ipv4s;
+
+            for (std::uint16_t idx = 0; idx < len; idx += 4)
+            {
+                std::uint32_t ipv4 = 0;
+                std::memcpy(&ipv4, v + idx, 4);
+                ipv4s.push_back(ipv4);
+            }
+            retval.emplace_back(std::move(ipv4s));
+            break;
+        }
+        case KEY_IPV6HINT:
+        {
+            std::vector<std::array<std::uint8_t, 16>> ipv6s;
+            for (std::uint16_t idx = 0; idx < len; idx += 16)
+            {
+                auto& tgt = ipv6s.emplace_back();
+                std::memcpy(tgt.data(), v + idx, tgt.size());
+            }
+            retval.emplace_back(std::move(ipv6s));
+            break;
+        }
+        case KEY_NO_DEF_ALPN:
+            retval.emplace_back(std::monostate{});
+            break;
+        case KEY_DOH_PATH: {
+            std::string doh_path{reinterpret_cast<const char*>(v), len};
+            retval.emplace_back(std::move(doh_path));
+            break;
+        }
+        default:
+            break;
+        }
+
+        p += len;
+    }
+    return retval;
+}
+
 class DnsClient
 {
     static constexpr size_t buff_size = 4096;
@@ -244,7 +344,59 @@ public:
                    ? retval
                    : std::nullopt;
     }
+
+    std::optional<std::vector<gen_svcb>> svcb_name(const char* name_, const SvcbType type_)
+    {
+        const int tgt_type = static_cast<std::underlying_type_t<SvcbType>>(type_);
+        std::optional<std::vector<gen_svcb>> retval;
+
+                return this->_process_item(name_, tgt_type,
+                    [&retval, tgt_type](ns_msg& message, const int count)
+                    {
+                        for (int idx = 0; idx < count; ++idx)
+                        {
+                            ns_rr raw_record;
+                            NSTL2_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0,
+                                                    "Failed to parse DNS message");
+                            // message is not TXT
+                            if (ns_rr_class(raw_record) != ns_c_in || ns_rr_type(raw_record) != tgt_type)
+                            {
+                                continue;
+                            }
+                            const auto rdata = ns_rr_rdata(raw_record);
+                            const auto size = ns_rr_rdlen(raw_record);
+                            if (size < 2)
+                            {
+                                continue;
+                            }
+                            gen_svcb target;
+
+                            auto p = rdata;
+                            target.priority = ns_get16(p);
+                            p += 2;
+
+                            std::array<char, NS_MAXDNAME> buffer;
+                            const int buff_n = dn_expand(ns_msg_base(message), ns_msg_end(message), p, buffer.data(), buffer.size());
+                            NSTL2_THROW_EXCEPTION_IF(buff_n < 0, "dn_expand failed");
+                            p += buff_n;
+                            if (buffer[0] == '\0')
+                            {
+                                buffer[0] = '.';
+                                buffer[1] = '\0';
+                            }
+                            target.address.assign(buffer.data(), strnlen(buffer.data(), buffer.size()));
+                            target.params = resolve_params(p, rdata + size);
+
+                            if (!retval.has_value())
+                            {
+                                retval.emplace();
+                            }
+                            retval->push_back(std::move(target));
+                        }
+                    }) ? retval : std::nullopt;
+    }
 };
+
 } // namespace
 
 std::optional<std::vector<mx_srv>> mx_name(const char* name_) { return DnsClient::instance().mx_name(name_); }
@@ -254,4 +406,6 @@ std::optional<std::vector<std::string>> txt_name(const char* name_) { return Dns
 std::optional<std::vector<std::string>> c_name(const char* name_) { return DnsClient::instance().c_name(name_); }
 
 std::optional<std::vector<gen_srv>> srv_name(const char* name_) { return DnsClient::instance().srv_name(name_); }
+
+std::optional<std::vector<gen_svcb>> svcb_name(const char* name_, const SvcbType type_) { return DnsClient::instance().svcb_name(name_, type_); }
 } // namespace nstl::net

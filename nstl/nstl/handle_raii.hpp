@@ -58,10 +58,7 @@ public:
         _hndlr = hndlr_;
     }
 
-    Type release()
-    {
-        return std::exchange(_hndlr, invalid_value);
-    }
+    Type release() { return std::exchange(_hndlr, invalid_value); }
 
     explicit operator bool() const { return _tools.valid(_hndlr); }
     explicit operator Type() const { return _hndlr; }
@@ -69,41 +66,27 @@ public:
     void swap(custom_raii& other_) { std::swap(_hndlr, other_._hndlr); }
     void swap(Type& other_) { std::swap(_hndlr, other_); }
 
-    friend bool operator ==(const custom_raii& left_, const custom_raii& right_)
+    friend bool operator==(const custom_raii& left_, const custom_raii& right_)
     {
         return left_._hndlr == right_._hndlr;
     }
 
-    friend bool operator <(const custom_raii& left_, const custom_raii& right_)
-    {
-        return left_._hndlr < right_._hndlr;
-    }
+    friend bool operator<(const custom_raii& left_, const custom_raii& right_) { return left_._hndlr < right_._hndlr; }
 
-    friend bool operator ==(const Type& left_, const custom_raii& right_)
-    {
-        return left_ == right_._hndlr;
-    }
+    friend bool operator==(const Type& left_, const custom_raii& right_) { return left_ == right_._hndlr; }
 
-    friend bool operator <(const Type& left_, const custom_raii& right_)
-    {
-        return left_ < right_._hndlr;
-    }
+    friend bool operator<(const Type& left_, const custom_raii& right_) { return left_ < right_._hndlr; }
 
-    friend bool operator ==(const custom_raii& left_, const Type& right_)
-    {
-        return left_._hndlr == right_;
-    }
+    friend bool operator==(const custom_raii& left_, const Type& right_) { return left_._hndlr == right_; }
 
-    friend bool operator <(const custom_raii& left_, const Type& right_)
-    {
-        return left_._hndlr < right_;
-    }
+    friend bool operator<(const custom_raii& left_, const Type& right_) { return left_._hndlr < right_; }
 };
 
 #ifdef _WIN32
 struct WindowsHandle
 {
-    static constexpr HANDLE invalid_value = reinterpret_cast<HANDLE>(std::int64_t{-1});
+    static constexpr HANDLE invalid_value = reinterpret_cast<HANDLE>(std::int64_t{ -1 });
+    WindowsHandle();
     bool valid(HANDLE hnd_) const;
     void free(HANDLE hnd_) const;
 };
@@ -114,6 +97,7 @@ using HandleRaii = custom_raii<HANDLE, WindowsHandle>;
 struct FileIntHandle
 {
     static constexpr int invalid_value = -1;
+    FileIntHandle();
     bool valid(int hnd_) const;
     void free(int hnd_) const;
 };

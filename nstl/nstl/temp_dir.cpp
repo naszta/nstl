@@ -78,7 +78,8 @@ temp_dir::temp_dir(const std::filesystem::path& parent_, const std::filesystem::
 {
     NSTL2_THROW_EXCEPTION_IF(!_owned, _target << " cannot be created");
 #ifdef __linux__
-    NSTL2_THROW_EXCEPTION_IF(::chmod(_target.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP) != 0, "chmod 750 failed on " << _target); // 750
+    NSTL2_THROW_EXCEPTION_IF(::chmod(_target.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP) != 0,
+                             "chmod 750 failed on " << _target); // 750
 #endif
     NSTL_DEBUG(_target << " created");
 }
@@ -107,15 +108,18 @@ temp_file::temp_file(std::nullopt_t) {}
 
 temp_file::temp_file(const std::optional<unsigned int>& seed_, Mode mode_)
     : temp_file{ temp_directory_path(), random_file_name(file_name_len, seed_), mode_ }
-{}
+{
+}
 
-temp_file::temp_file(const std::filesystem::path& name_, Mode mode_) : temp_file{ temp_directory_path(), name_, mode_ } {}
+temp_file::temp_file(const std::filesystem::path& name_, Mode mode_) : temp_file{ temp_directory_path(), name_, mode_ }
+{
+}
 
 temp_file::temp_file(const std::filesystem::path& parent_, const std::filesystem::path& name_, const Mode mode_)
-    : _target{ parent_ / name_ }, _owned{ !fs::exists(_target) }, _readable{mode_ == Mode::ReadWrite}
+    : _target{ parent_ / name_ }, _owned{ !fs::exists(_target) }, _readable{ mode_ == Mode::ReadWrite }
 {
-    _handler.reset(
-        ::file_open(_target.c_str(), (_readable ? O_RDWR | O_CREAT : O_WRONLY | O_CREAT), S_IRUSR | S_IWUSR | S_IRGRP));
+    _handler.reset(::file_open(_target.c_str(), (_readable ? O_RDWR | O_CREAT | O_EXCL : O_WRONLY | O_CREAT | O_EXCL),
+                               S_IRUSR | S_IWUSR | S_IRGRP));
     NSTL2_THROW_EXCEPTION_IF(!_handler, _target << " cannot be opened");
 }
 
@@ -133,18 +137,17 @@ temp_file::~temp_file()
 }
 
 temp_file::temp_file(temp_file&& other_) noexcept
-    : _target{std::move(other_._target)}
-    , _owned{std::exchange(other_._owned, false)}
-    , _readable{std::exchange(other_._readable, false)}
-    , _handler{std::move(other_._handler)}
-{}
+    : _target{ std::move(other_._target) }, _owned{ std::exchange(other_._owned, false) },
+      _readable{ std::exchange(other_._readable, false) }, _handler{ std::move(other_._handler) }
+{
+}
 
 temp_file& temp_file::operator=(temp_file&& other_) noexcept
 {
     if (this != &other_)
     {
         this->swap(other_);
-        temp_file tmp{std::nullopt};
+        temp_file tmp{ std::nullopt };
         tmp.swap(other_);
     }
     return *this;
@@ -158,13 +161,7 @@ void temp_file::swap(temp_file& other_)
     _handler.swap(other_._handler);
 }
 
-bool temp_file::valid() const
-{
-    return !!_handler;
-}
+bool temp_file::valid() const { return !!_handler; }
 
-const std::filesystem::path& temp_file::path() const
-{
-    return _target;
-}
+const std::filesystem::path& temp_file::path() const { return _target; }
 } // namespace nstl

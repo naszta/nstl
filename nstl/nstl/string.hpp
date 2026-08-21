@@ -3,10 +3,27 @@
 
 #include <concepts>
 #include <cctype>
+#include <cwctype>
 #include <string_view>
+#include <type_traits>
 
 namespace nstl
 {
+namespace detail
+{
+template <class CharT> bool is_space_ch(const CharT ch_)
+{
+    if constexpr (std::is_same_v<CharT, wchar_t>)
+    {
+        return std::iswspace(static_cast<std::wint_t>(ch_)) != 0;
+    }
+    else
+    {
+        return std::isspace(static_cast<std::make_unsigned_t<CharT>>(ch_)) != 0;
+    }
+}
+} // namespace detail
+
 template <class CharT, class TraitsT, class FuncT>
     requires std::invocable<FuncT, std::basic_string_view<CharT, TraitsT>>
 size_t split_view_func(const std::basic_string_view<CharT, TraitsT> view_, const CharT delim_, FuncT func,
@@ -42,7 +59,7 @@ size_t split_view_func(const std::basic_string_view<CharT, TraitsT> view_, const
 template <class CharT, class TraitsT>
 std::basic_string_view<CharT, TraitsT> right_trim_view(std::basic_string_view<CharT, TraitsT> view_)
 {
-    while (!view_.empty() && std::isspace(view_.back()))
+    while (!view_.empty() && detail::is_space_ch(view_.back()))
     {
         view_ = view_.substr(0, view_.size() - 1);
     }
@@ -53,7 +70,7 @@ std::basic_string_view<CharT, TraitsT> right_trim_view(std::basic_string_view<Ch
 template <class CharT, class TraitsT>
 std::basic_string_view<CharT, TraitsT> left_trim_view(std::basic_string_view<CharT, TraitsT> view_)
 {
-    while (!view_.empty() && std::isspace(view_.front()))
+    while (!view_.empty() && detail::is_space_ch(view_.front()))
     {
         view_ = view_.substr(1);
     }

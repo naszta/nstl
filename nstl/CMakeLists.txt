@@ -16,6 +16,7 @@ SET(nstllibHdrs
   nstl/dns_tools.hpp
   nstl/env_var_raii.hpp
   nstl/exception.hpp
+  nstl/file_trigger.hpp
   nstl/global_init.hpp
   nstl/handle_raii.hpp
   nstl/http_client.hpp
@@ -36,6 +37,7 @@ SET(nstllibHdrs
 )
 
 SET(nstllibSrcs
+  nstl/args_editor.cpp
   nstl/c_timezone.cpp
   nstl/math.cpp
   nstl/datahash.cpp
@@ -52,17 +54,17 @@ SET(nstllibSrcs
 )
 
 if(LINUX)
-  list(APPEND nstllibSrcs nstl/signal_barrier_linux.cpp nstl/dns_tools_posix.cpp)
+  list(APPEND nstllibSrcs nstl/signal_barrier_linux.cpp nstl/dns_tools_posix.cpp nstl/file_trigger_linux.cpp)
   if (HAVE_BACKTRACE)
     list(APPEND nstllibSrcs nstl/backtrace_linux.cpp)
   else ()
     list(APPEND nstllibSrcs nstl/backtrace_common.cpp)
   endif()
 elseif(WIN32)
-  list(APPEND nstllibSrcs nstl/signal_barrier.cpp nstl/backtrace_win32.cpp nstl/dns_tools_w32.cpp)
+  list(APPEND nstllibSrcs nstl/signal_barrier.cpp nstl/backtrace_win32.cpp nstl/dns_tools_w32.cpp nstl/file_trigger_win32.cpp)
   add_compile_definitions(_CRT_NONSTDC_NO_DEPRECATE=1)
 else()
-  list(APPEND nstllibSrcs nstl/signal_barrier.cpp nstl/backtrace_common.cpp nstl/dns_tools_posix.cpp)
+  list(APPEND nstllibSrcs nstl/signal_barrier.cpp nstl/backtrace_common.cpp nstl/dns_tools_posix.cpp nstl/file_trigger_apple.cpp)
 endif()
 
 set(nstllib_private_dependencies

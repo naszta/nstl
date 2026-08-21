@@ -13,7 +13,7 @@ int main(int argc_, char** argv_)
     nstl::log::Logger logger;
     const auto pr_id = nstl::get_env_var("NSTL_PROCESSES_ID");
     const auto pr_num = nstl::get_env_var("NSTL_PROCESSES_NUMBER");
-    const auto healthy = nstl::is_arg_set(argc_, argv_, "--healthy");
+    const auto healthy = nstl::is_arg_set(argc_, const_cast<const char**>(argv_), "--healthy");
 
     NSTL_INFO("NSTL_PROCESSES_ID: " << pr_id << "; NSTL_PROCESSES_NUMBER: " << pr_num << " (args: " << nstl::range_print_iter(argv_, argv_ + argc_, ' ') << ')');
 

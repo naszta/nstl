@@ -1,16 +1,19 @@
 #include "file_trigger.hpp"
 #include "exception.hpp"
 #include "handle_raii.hpp"
-#include "temp_dir.hpp"
 
 #include <sys/stat.h>
 #include <sys/epoll.h>
+#include <sys/inotify.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <climits>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include <array>
 #include <atomic>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -20,8 +23,6 @@ namespace nstl
 
 namespace
 {
-constexpr std::string_view exit_value{ "exit: true\n" };
-
 bool set_non_blocking(int fd)
 {
     const auto flags = ::fcntl(fd, F_GETFL, 0);
@@ -41,8 +42,10 @@ class file_trigger_linux : public file_trigger
     const FileIntRaii _hndl;
     const data_cb _cb;
     const bool _sow{ true };
-    temp_file _sync_wo;
-    FileIntRaii _sync_ro;
+    const size_t _buffer_size{0};
+    FileIntRaii _inotify_fd;
+    FileIntRaii _exit_read;
+    FileIntRaii _exit_write;
     std::vector<char> _buffer;
 
     std::atomic_bool _running{ true };
@@ -78,51 +81,34 @@ class file_trigger_linux : public file_trigger
         return true;
     }
 
-    bool _is_exit(int fd)
+    void _drain_inotify()
     {
-        bool retval = false;
-        const auto content_check = [&retval](const std::span<char> content)
+        std::array<char, sizeof(inotify_event) + NAME_MAX + 1> buf;
+        while (::read(static_cast<int>(_inotify_fd), buf.data(), buf.size()) > 0)
         {
-            if (exit_value.size() <= content.size())
-            {
-                retval = exit_value.starts_with(std::string_view{ content.data(), content.size() });
-            }
-            else
-            {
-                retval = false;
-            }
-        };
-        if (this->_read_data(fd, content_check, true))
-        {
-            return retval;
         }
-        return true;
     }
 
     void _worker()
     {
-        _read_data(static_cast<int>(_hndl), _cb, _sow);
-
         const FileIntRaii epfd{ ::epoll_create1(EPOLL_CLOEXEC) };
-        // register the target file:
+        // register the inotify fd watching the target file:
         epoll_event ev_target{};
         ev_target.events = EPOLLIN;
-        ev_target.data.fd = static_cast<int>(_hndl);
+        ev_target.data.fd = static_cast<int>(_inotify_fd);
         NSTL2_THROW_EXCEPTION_IF(
-            ::epoll_ctl(static_cast<int>(epfd), EPOLL_CTL_ADD, static_cast<int>(_hndl), &ev_target) < 0,
+            ::epoll_ctl(static_cast<int>(epfd), EPOLL_CTL_ADD, static_cast<int>(_inotify_fd), &ev_target) < 0,
             "epoll_ctl failed (target)");
-        // register exit file:
+        // register exit pipe:
         epoll_event ev_exit{};
         ev_exit.events = EPOLLIN;
-        ev_exit.data.fd = static_cast<int>(_sync_ro);
+        ev_exit.data.fd = static_cast<int>(_exit_read);
         NSTL2_THROW_EXCEPTION_IF(
-            ::epoll_ctl(static_cast<int>(epfd), EPOLL_CTL_ADD, static_cast<int>(_sync_ro), &ev_exit) < 0,
-            "epoll_ctl failed (target)");
+            ::epoll_ctl(static_cast<int>(epfd), EPOLL_CTL_ADD, static_cast<int>(_exit_read), &ev_exit) < 0,
+            "epoll_ctl failed (exit)");
 
         constexpr int event_size = 16;
         std::array<epoll_event, event_size> events;
-
-        _buffer.resize(1024 * 1024);
 
         while (true)
         {
@@ -135,31 +121,46 @@ class file_trigger_linux : public file_trigger
                 }
                 NSTL2_THROW_EXCEPTION("epoll_wait error n = " << n);
             }
+            bool exit_requested = false;
             for (int idx = 0; idx < n; ++idx)
             {
                 const int tgt_fd = events[idx].data.fd;
-                if (tgt_fd == _hndl)
+                if (tgt_fd == _inotify_fd)
                 {
-                    if (!this->_read_data(tgt_fd, _cb, true))
-                    {
-                        return;
-                    }
+                    this->_drain_inotify();
+                    this->_read_data(static_cast<int>(_hndl), _cb, true);
                 }
-                else if (tgt_fd == _sync_ro && this->_is_exit(tgt_fd))
+                else if (tgt_fd == _exit_read)
                 {
-                    return;
+                    exit_requested = true;
                 }
+            }
+            if (exit_requested)
+            {
+                return;
             }
         }
     }
 
 public:
-    file_trigger_linux(FileIntRaii handle_, data_cb cb_, const bool sow_)
-        : _hndl{ std::move(handle_) }, _cb{ std::move(cb_) }, _sow{ sow_ }
+    file_trigger_linux(FileIntRaii handle_, data_cb cb_, const bool sow_, const size_t buffer_size_)
+        : _hndl{ std::move(handle_) }, _cb{ std::move(cb_) }, _sow{ sow_ }, _buffer_size{ buffer_size_ }
     {
-        NSTL2_THROW_EXCEPTION_IF(!_sync_wo.valid(), "Sync file cannot be created");
-        _sync_ro.reset(::open(_sync_wo.path().c_str(), O_RDONLY, O_NONBLOCK));
-        NSTL2_THROW_EXCEPTION_IF(!_sync_ro, "Sync file cannot be opened for read");
+        _inotify_fd.reset(::inotify_init1(IN_NONBLOCK | IN_CLOEXEC));
+        NSTL2_THROW_EXCEPTION_IF(!_inotify_fd, "inotify_init1 failed");
+
+        const std::string proc_path = "/proc/self/fd/" + std::to_string(static_cast<int>(_hndl));
+        NSTL2_THROW_EXCEPTION_IF(::inotify_add_watch(static_cast<int>(_inotify_fd), proc_path.c_str(), IN_MODIFY) < 0,
+                                 "inotify_add_watch failed");
+
+        _buffer.resize(_buffer_size);
+        _read_data(static_cast<int>(_hndl), _cb, _sow);
+
+        std::array<int, 2> exit_fds{ -1, -1 };
+        NSTL2_THROW_EXCEPTION_IF(::pipe2(exit_fds.data(), O_NONBLOCK | O_CLOEXEC) < 0, "Exit pipe cannot be created");
+        _exit_read.reset(exit_fds[0]);
+        _exit_write.reset(exit_fds[1]);
+
         _runner = std::thread{ &file_trigger_linux::_worker, this };
     }
 
@@ -169,29 +170,39 @@ public:
     {
         if (_running.exchange(false))
         {
-            const auto written = ::write(static_cast<int>(_sync_wo), exit_value.data(), exit_value.size());
-            NSTL2_THROW_EXCEPTION_IF(written < 0 || static_cast<size_t>(written) != exit_value.size(),
+            constexpr char exit_signal = 1;
+            const auto written = ::write(static_cast<int>(_exit_write), &exit_signal, sizeof(exit_signal));
+            NSTL2_THROW_EXCEPTION_IF(written < 0 || static_cast<size_t>(written) != sizeof(exit_signal),
                                      "Failed to write file");
             _runner.join();
         }
     }
 };
 
-std::shared_ptr<file_trigger> file_trigger::factory(const std::filesystem::path& file_, data_cb cb_, const bool sow_)
+std::shared_ptr<file_trigger> file_trigger::factory(const std::filesystem::path& file_, data_cb cb_, const bool sow_, const size_t buffer_size_)
 {
-    FileIntRaii hndl{ ::open(file_.c_str(), O_RDONLY, O_NONBLOCK) };
+    FileIntRaii hndl{ open_native(file_) };
     NSTL2_THROW_EXCEPTION_IF(!hndl, file_ << " cannot be opened for read");
-    return std::make_shared<file_trigger_linux>(std::move(hndl), std::move(cb_), sow_);
+    NSTL2_THROW_EXCEPTION_IF(buffer_size_ == 0, "Buffer must not be empty");
+    NSTL2_THROW_EXCEPTION_IF(!cb_, "Callback must be valid");
+    return std::make_shared<file_trigger_linux>(std::move(hndl), std::move(cb_), sow_, buffer_size_);
 }
 
-std::shared_ptr<file_trigger> file_trigger::factory(native_handle handle_, data_cb cb_, const bool sow_)
+std::shared_ptr<file_trigger> file_trigger::factory(native_handle handle_, data_cb cb_, const bool sow_, const size_t buffer_size_)
 {
     FileIntRaii hndl{ handle_ };
     NSTL2_THROW_EXCEPTION_IF(!hndl, "Invalid handle passed through");
+    NSTL2_THROW_EXCEPTION_IF(buffer_size_ == 0, "Buffer must not be empty");
+    NSTL2_THROW_EXCEPTION_IF(!cb_, "Callback must be valid");
     set_non_blocking(static_cast<int>(hndl));
-    return std::make_shared<file_trigger_linux>(std::move(hndl), std::move(cb_), sow_);
+    return std::make_shared<file_trigger_linux>(std::move(hndl), std::move(cb_), sow_, buffer_size_);
 }
 
 file_trigger::file_trigger() = default;
 file_trigger::~file_trigger() = default;
+
+nstl::file_trigger::native_handle open_native(const std::filesystem::path& path_)
+{
+    return ::open(path_.c_str(), O_RDONLY | O_NONBLOCK);
+}
 } // namespace nstl

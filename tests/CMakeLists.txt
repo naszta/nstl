@@ -29,6 +29,7 @@ SET(nstltestSrcs
   base64_tests.cpp
   vector_tests.cpp
   http_client_tests.cpp
+  file_trigger_tests.cpp
 )
 
 ADD_EXECUTABLE(nstltest ${nstltestSrcs})

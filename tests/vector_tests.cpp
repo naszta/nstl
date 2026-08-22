@@ -349,3 +349,14 @@ TEST(Vector, ReleaseTransfersRawStateAndResetsVector)
 
     std::free(ptr);
 }
+
+TEST(Vector, EmptyCtor)
+{
+    nstl::vector<int> v;
+    v.push_back(1);
+    v.push_back(2);
+    v.clear();
+    nstl::vector<int> u{v};
+    EXPECT_TRUE(u.empty());
+    EXPECT_EQ(u.capacity(), 0);
+}

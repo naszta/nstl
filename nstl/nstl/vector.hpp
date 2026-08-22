@@ -65,14 +65,14 @@ public:
     vector() = default;
     ~vector() { this->reset(); }
     vector(const vector& other_)
-        : _ptr{ reinterpret_cast<Type*>(std::malloc(other_._capacity * sizeof(Type))) }, _size{ other_._size },
-          _capacity{ other_._capacity }
     {
-        if (!_ptr) [[unlikely]]
+        if (other_.empty())
         {
-            throw std::bad_alloc{};
+            return;
         }
-        std::memcpy(_ptr, other_._ptr, _size * sizeof(Type));
+        auto ptr = this->_auto_capacity(other_.size());
+        std::memcpy(ptr, other_.data(), other_.size() * sizeof(Type));
+        _size = other_.size();
     }
     vector& operator=(const vector& other_)
     {

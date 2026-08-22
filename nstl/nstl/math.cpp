@@ -5,6 +5,10 @@
 
 NSTL_FENV_ACCESS_ON
 
+#if (math_errhandling & MATH_ERREXCEPT) == 0
+#error This code needs to use floating point exceptions
+#endif
+
 namespace nstl::math
 {
 template <class Type>

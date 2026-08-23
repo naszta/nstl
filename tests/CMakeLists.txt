@@ -30,6 +30,9 @@ SET(nstltestSrcs
   vector_tests.cpp
   http_client_tests.cpp
   file_trigger_tests.cpp
+  math_tests.cpp
+  handle_raii_tests.cpp
+  global_init_tests.cpp
 )
 
 ADD_EXECUTABLE(nstltest ${nstltestSrcs})

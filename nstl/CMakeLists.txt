@@ -53,6 +53,9 @@ SET(nstllibSrcs
   nstl/temp_dir.cpp
 )
 
+CONFIGURE_FILE(${nstllib_SOURCE_DIR}/compiler.cpp.in ${nstllib_BINARY_DIR}/compiler.cpp @ONLY)
+list(APPEND nstllibSrcs ${nstllib_BINARY_DIR}/compiler.cpp)
+
 if(LINUX)
   list(APPEND nstllibSrcs nstl/signal_barrier_linux.cpp nstl/dns_tools_posix.cpp nstl/file_trigger_linux.cpp)
   if (HAVE_BACKTRACE)

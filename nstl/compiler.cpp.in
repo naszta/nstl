@@ -1,0 +1,11 @@
+#include <nstl/compiler.hpp>
+
+#define nstlroot_VERSION "@nstlroot_MAJOR_VERSION@.@nstlroot_MINOR_VERSION@.@nstlroot_BUILD_VERSION@"
+
+namespace nstl
+{
+std::string_view version()
+{
+    return nstlroot_VERSION;
+}
+}

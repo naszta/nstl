@@ -1,5 +1,6 @@
 #include <nstl/parse.hpp>
 #include <nstl/macros.hpp>
+#include <nstl/secure_string.hpp>
 #include <nstl/scope_exit.hpp>
 
 #include <cstring>
@@ -21,12 +22,13 @@
 
 namespace
 {
-constexpr std::uint32_t running_true = std::numeric_limits<std::uint32_t>::max();
-std::atomic_uint32_t app_running{ running_true };
+constexpr DWORD running_true = std::numeric_limits<DWORD>::max();
+std::atomic<DWORD> app_running{ running_true };
 
 // Windows style signal handling
 BOOL WINAPI ConsoleHandler(DWORD signal)
 {
+    static_assert(std::atomic<DWORD>::is_always_lock_free);
     switch (signal)
     {
     case CTRL_C_EVENT:
@@ -65,14 +67,12 @@ std::unique_ptr<char, free_deleter> command_line(int argc_, char** argv_)
     return retval;
 }
 
-size_t secure_strlen(const char* ptr_) { return ptr_ ? std::strlen(ptr_) : 0; }
-
 std::unique_ptr<void, free_deleter> env_vars(char** envv_, const std::uint32_t idx_, const std::uint32_t threads_)
 {
     std::vector<char> buffer;
     buffer.reserve(1024);
 
-    for (auto item_size = secure_strlen(*envv_); 0 < item_size; ++envv_, item_size = secure_strlen(*envv_))
+    for (auto item_size = nstl::strlen(*envv_); 0 < item_size; ++envv_, item_size = nstl::strlen(*envv_))
     {
         std::copy(*envv_, *envv_ + item_size, std::back_inserter(buffer));
         buffer.push_back('\0');

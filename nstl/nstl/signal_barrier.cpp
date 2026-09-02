@@ -18,12 +18,13 @@ std::atomic_bool in_use{ false };
 std::atomic_int signal_received{ 0 };
 
 #ifdef _WIN32
-constexpr std::uint32_t running_true = std::numeric_limits<std::uint32_t>::max();
-std::atomic_uint32_t app_running{ running_true };
+constexpr DWORD running_true = std::numeric_limits<DWORD>::max();
+std::atomic<DWORD> app_running{ running_true };
 
 // Windows style signal handling
 BOOL WINAPI ConsoleHandler(DWORD signal)
 {
+    static_assert(std::atomic<DWORD>::is_always_lock_free);
     switch (signal)
     {
     case CTRL_C_EVENT:
@@ -37,16 +38,14 @@ BOOL WINAPI ConsoleHandler(DWORD signal)
     }
 }
 
-using sighandler_t = _crt_signal_t;
-#elif defined(__APPLE__)
-using sighandler_t = sig_t;
+using sig_t = _crt_signal_t;
 #endif
 void signal_receiver(int value_) { signal_received.store(value_); }
 
-sighandler_t int_hndlr = SIG_DFL;
-sighandler_t int_term = SIG_DFL;
+sig_t int_hndlr = SIG_DFL;
+sig_t int_term = SIG_DFL;
 #ifdef SIGQUIT
-sighandler_t int_quit = SIG_DFL;
+sig_t int_quit = SIG_DFL;
 #endif
 
 std::optional<SigVal> load_value()

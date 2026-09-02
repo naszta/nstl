@@ -1,13 +1,6 @@
 #ifndef _NSTL_COMPILER
 #define _NSTL_COMPILER
 
-#include <string_view>
-
-namespace nstl
-{
-std::string_view version();
-}
-
 #ifdef _WIN32
 
 #define NSTL_FENV_ACCESS_ON _Pragma("fenv_access (on)")

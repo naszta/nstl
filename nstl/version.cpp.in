@@ -1,4 +1,4 @@
-#include <nstl/compiler.hpp>
+#include <nstl/version.hpp>
 
 #define nstlroot_VERSION "@nstlroot_MAJOR_VERSION@.@nstlroot_MINOR_VERSION@.@nstlroot_BUILD_VERSION@"
 

@@ -1,5 +1,6 @@
 #include "args_editor.hpp"
 #include "exception.hpp"
+#include "secure_string.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -19,7 +20,7 @@ bool is_arg_set(int& argc_, const char** argv_, const char* value_)
         auto ptr = argv_ + idx;
         const char* ptrval = ptr ? *ptr : nullptr;
 
-        if (ptrval && std::strcmp(value_, ptrval) == 0)
+        if (nstl::strcmp(value_, ptrval) == 0)
         {
             found = true;
             const auto last_idx = argc_ - 1;

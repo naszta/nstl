@@ -29,6 +29,7 @@ SET(nstllibHdrs
   nstl/ro_buffer.hpp
   nstl/safe_basename.hpp
   nstl/scope_exit.hpp
+  nstl/secure_string.hpp
   nstl/signal_barrier.hpp
   nstl/string.hpp
   nstl/temp_dir.hpp
@@ -53,8 +54,8 @@ SET(nstllibSrcs
   nstl/temp_dir.cpp
 )
 
-CONFIGURE_FILE(${nstllib_SOURCE_DIR}/compiler.cpp.in ${nstllib_BINARY_DIR}/compiler.cpp @ONLY)
-list(APPEND nstllibSrcs ${nstllib_BINARY_DIR}/compiler.cpp)
+CONFIGURE_FILE(${nstllib_SOURCE_DIR}/version.cpp.in ${nstllib_BINARY_DIR}/version.cpp @ONLY)
+list(APPEND nstllibSrcs ${nstllib_BINARY_DIR}/version.cpp)
 
 if(LINUX)
   list(APPEND nstllibSrcs nstl/signal_barrier_linux.cpp nstl/dns_tools_posix.cpp nstl/file_trigger_linux.cpp)

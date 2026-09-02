@@ -32,7 +32,7 @@ class SignalBarrier
 #endif
 
 public:
-    SignalBarrier(std::chrono::nanoseconds period_ = std::chrono::milliseconds{10});
+    explicit SignalBarrier(std::chrono::nanoseconds period_ = std::chrono::milliseconds{10});
     ~SignalBarrier();
 
     SignalBarrier(const SignalBarrier&) = delete;

@@ -1,6 +1,8 @@
 #include <nstl/parse.hpp>
 #include <nstl/macros.hpp>
+#include <nstl/secure_string.hpp>
 #include <nstl/scope_exit.hpp>
+#include <nstl/version.hpp>
 
 #include <cstring>
 #include <cstdlib>
@@ -72,6 +74,11 @@ std::variant<std::vector<pid_t>, int> start_processes(int argc_, char** argv_, c
 
 int main(int argc_, char** argv_, char** envv_)
 {
+    if (2 <= argc_ && nstl::strcmp("--version", argv_[1]) == 0)
+    {
+        std::cout << "Version: " << nstl::version() << std::endl;
+        return EXIT_SUCCESS;
+    }
     NSTL_THROW_EXCEPTION_IF(argc_ < 3, std::invalid_argument, "At least 3 args expected");
     const auto threads = nstl::parse_view<std::uint32_t>(argv_[1]);
     NSTL_THROW_EXCEPTION_IF(threads == 0, std::runtime_error, "at least one thread must be set");
@@ -104,9 +111,8 @@ int main(int argc_, char** argv_, char** envv_)
             EV_SET(&kev, static_cast<uintptr_t>(pid), EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, nullptr);
             changes.push_back(kev);
         }
-        NSTL_THROW_EXCEPTION_IF(
-            ::kevent(kq, changes.data(), static_cast<int>(changes.size()), nullptr, 0, nullptr) < 0,
-            std::runtime_error, "kevent registration failed");
+        NSTL_THROW_EXCEPTION_IF(::kevent(kq, changes.data(), static_cast<int>(changes.size()), nullptr, 0, nullptr) < 0,
+                                std::runtime_error, "kevent registration failed");
     }
 
     constexpr int event_size = 16;

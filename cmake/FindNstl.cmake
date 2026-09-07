@@ -8,10 +8,16 @@ IF(GIT_FOUND)
     COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
     OUTPUT_VARIABLE "nstlroot_BUILD_VERSION"
+    RESULT_VARIABLE "nstl_git_cmd_result"
     ERROR_QUIET
     OUTPUT_STRIP_TRAILING_WHITESPACE
   )
-  MESSAGE(STATUS "NSTL version: ${nstlroot_BUILD_VERSION}")
+  if (nstl_git_cmd_result EQUAL 0)
+    MESSAGE(STATUS "NSTL version: ${nstlroot_BUILD_VERSION}")
+  else()
+    MESSAGE(STATUS "NSTL version: no git")
+    SET(nstlroot_BUILD_VERSION 0)
+  endif()
 ENDIF(GIT_FOUND)
 SET(nstlroot_VERSION "${nstlroot_MAJOR_VERSION}.${nstlroot_MINOR_VERSION}.${nstlroot_BUILD_VERSION}")
 

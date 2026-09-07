@@ -83,7 +83,6 @@ if (NOT NSTL_USING_STD_CHRONO)
   set(BUILD_TZ_LIB ON CACHE BOOL "")
   set(COMPILE_WITH_C_LOCALE ON CACHE BOOL "")
 
-  add_compile_definitions(NSTL_USING_HH_DATE)
   add_subdirectory(modules/date)
 endif()
 

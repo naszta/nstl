@@ -360,3 +360,53 @@ TEST(Vector, EmptyCtor)
     EXPECT_TRUE(u.empty());
     EXPECT_EQ(u.capacity(), 0);
 }
+
+TEST(Vector, Erase)
+{
+    nstl::vector<int> v;
+    v.push_back(1);
+    v.push_back(2);
+    v.push_back(3);
+    EXPECT_EQ(v[0], 1);
+    EXPECT_EQ(v[1], 2);
+    EXPECT_EQ(v[2], 3);
+    v.erase(std::next(v.begin()));
+    EXPECT_EQ(v.size(), 2u);
+    EXPECT_EQ(v[0], 1);
+    EXPECT_EQ(v[1], 3);
+    v.erase(std::prev(v.end()));
+    EXPECT_EQ(v.size(), 1u);
+    EXPECT_EQ(v[0], 1);
+    v.erase(v.begin());
+    EXPECT_TRUE(v.empty());
+}
+
+TEST(Vector, RangeErase)
+{
+    nstl::vector<int> v;
+    v.push_back(1);
+    v.push_back(2);
+    v.push_back(3);
+    v.push_back(4);
+    EXPECT_EQ(v[0], 1);
+    EXPECT_EQ(v[1], 2);
+    EXPECT_EQ(v[2], 3);
+    EXPECT_EQ(v[3], 4);
+    v.erase(std::next(v.begin()), std::prev(v.end()));
+    EXPECT_EQ(v.size(), 2u);
+    EXPECT_EQ(v[0], 1);
+    EXPECT_EQ(v[1], 4);
+    v.erase(v.end(), v.end());
+    EXPECT_EQ(v.size(), 2u);
+    v.erase(std::prev(v.end()), v.end());
+    EXPECT_EQ(v.size(), 1u);
+    EXPECT_EQ(v[0], 1);
+
+    nstl::vector<int> v2;
+    v2.push_back(1);
+    v2.push_back(2);
+    v2.push_back(3);
+    v2.push_back(4);
+    v2.erase(v2.begin(), v2.end());
+    EXPECT_TRUE(v2.empty());
+}

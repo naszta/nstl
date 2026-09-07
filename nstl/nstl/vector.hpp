@@ -133,8 +133,8 @@ public:
         {
             throw std::runtime_error{ "container is empty" };
         }
-        (_ptr + _size - 1)->Type::~Type();
         --_size;
+        (_ptr + _size)->Type::~Type();
     }
 
     void reset()
@@ -143,6 +143,48 @@ public:
         std::free(_ptr);
         _capacity = 0;
         _ptr = nullptr;
+    }
+
+    iterator erase(iterator itr_)
+    {
+        this->_check_iterator<true>(itr_);
+        auto dist = std::distance(itr_, this->end());
+        if (--dist == 0)
+        {
+            this->pop_back();
+            return this->end();
+        }
+        itr_->Type::~Type();
+        const auto next_itr = itr_ + 1;
+        std::memmove(itr_, next_itr, dist * sizeof(Type));
+        --_size;
+        return itr_;
+    }
+
+    iterator erase(const iterator beg_, const iterator end_)
+    {
+        if (beg_ == end_)
+        {
+            return end_;
+        }
+        this->_check_iterator<false>(beg_);
+        this->_check_iterator<false>(end_);
+        if (end_ < beg_) [[unlikely]]
+        {
+            throw std::invalid_argument{ "end_ cannot be smaller than beg_" };
+        }
+
+        for (auto itr = beg_; itr != end_; ++itr)
+        {
+            itr->Type::~Type();
+        }
+        auto dist = std::distance(end_, this->end());
+        _size -= std::distance(beg_, end_);
+        if (0 < dist)
+        {
+            std::memmove(beg_, end_, dist * sizeof(Type));
+        }
+        return beg_;
     }
 
     void reserve(const size_t new_capacity_) { _auto_capacity(new_capacity_); }
@@ -188,6 +230,29 @@ public:
     std::tuple<pointer, size_type, size_type> release()
     {
         return std::make_tuple(std::exchange(_ptr, nullptr), std::exchange(_size, 0), std::exchange(_capacity, 0));
+    }
+
+private:
+    template <bool valid> void _check_iterator(const_iterator itr_) const
+    {
+        if (itr_ < this->cbegin()) [[unlikely]]
+        {
+            throw std::invalid_argument{ "got invalid iterator" };
+        }
+        if constexpr (valid)
+        {
+            if (this->cend() <= itr_) [[unlikely]]
+            {
+                throw std::invalid_argument{ "got invalid iterator" };
+            }
+        }
+        else
+        {
+            if (this->cend() < itr_) [[unlikely]]
+            {
+                throw std::invalid_argument{ "got invalid iterator" };
+            }
+        }
     }
 };
 } // namespace nstl

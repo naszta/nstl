@@ -1,6 +1,5 @@
 build
 out
-.git
 .github
 .vscode
 .clang-format

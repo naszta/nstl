@@ -1,6 +1,10 @@
 PROJECT(nstllib LANGUAGES CXX)
 
+find_package(Boost COMPONENTS headers serialization program_options)
+find_package(CURL COMPONENTS HTTPS SSL)
+
 if (NSTL_USING_OPENSSL)
+  find_package(OpenSSL REQUIRED)
   include_directories(${OPENSSL_INCLUDE_DIR})
 endif()
 
@@ -59,7 +63,7 @@ list(APPEND nstllibSrcs ${nstllib_BINARY_DIR}/version.cpp)
 
 if(LINUX)
   list(APPEND nstllibSrcs nstl/signal_barrier_linux.cpp nstl/dns_tools_posix.cpp nstl/file_trigger_linux.cpp)
-  if (HAVE_BACKTRACE)
+  if (NSTL_HAVE_BACKTRACE)
     list(APPEND nstllibSrcs nstl/backtrace_linux.cpp)
   else ()
     list(APPEND nstllibSrcs nstl/backtrace_common.cpp)
@@ -81,7 +85,7 @@ set(nstllib_public_dependencies
 )
 
 if(LINUX)
-  if (HAVE_BACKTRACE)
+  if (NSTL_HAVE_BACKTRACE)
     list(APPEND nstllib_public_dependencies backtrace)
   endif()
 endif()

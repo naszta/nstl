@@ -48,6 +48,15 @@ inline int strncmp(const char* left_, const char* right_, const size_t max_count
     }
     return 0;
 }
+
+inline size_t wcslen(const wchar_t* text_)
+{
+    if (text_) [[likely]]
+    {
+        return std::wcslen(text_);
+    }
+    return 0;
+}
 } // namespace nstl
 
 #endif

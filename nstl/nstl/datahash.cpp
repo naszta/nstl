@@ -1,5 +1,6 @@
 #include "datahash.hpp"
 #include "exception.hpp"
+#include "secure_string.hpp"
 #include "scope_exit.hpp"
 
 #include <iterator>
@@ -127,17 +128,17 @@ std::optional<HashType> parseHashType(const std::string_view name_)
 
 void Hasher::add(const char* data_)
 {
-    if (data_)
+    if (const auto size = nstl::strlen(data_); 0 < size)
     {
-        this->add(data_, std::strlen(data_));
+        this->add(data_, size);
     }
 }
 
 void Hasher::add(const wchar_t* data_)
 {
-    if (data_)
+    if (const auto size = nstl::wcslen(data_); 0 < size)
     {
-        this->add(data_, std::wcslen(data_) * sizeof(wchar_t));
+        this->add(data_, size * sizeof(wchar_t));
     }
 }
 } // namespace nstl

@@ -85,23 +85,22 @@ std::vector<svcb_param> resolve_params(const uint8_t* p, const uint8_t* end)
         }
         case KEY_IPV4HINT:
         {
-            NSTL2_THROW_EXCEPTION_IF(len % 4 != 0, "Invalid IPV4HINTS size");
-            std::vector<std::uint32_t> ipv4s;
+            NSTL2_THROW_EXCEPTION_IF(len % ipv4_size != 0, "Invalid IPV4HINTS size");
+            std::vector<ipv4_addr> ipv4s;
 
-            for (std::uint16_t idx = 0; idx < len; idx += 4)
+            for (std::uint16_t idx = 0; idx < len; idx += ipv4_size)
             {
-                std::uint32_t ipv4 = 0;
-                std::memcpy(&ipv4, v + idx, 4);
-                ipv4s.push_back(ipv4);
+                auto& tgt = ipv4s.emplace_back();
+                std::memcpy(tgt.data(), v + idx, tgt.size());
             }
             retval.emplace_back(std::move(ipv4s));
             break;
         }
         case KEY_IPV6HINT:
         {
-            NSTL2_THROW_EXCEPTION_IF(len % 16 != 0, "Invalid IPV6HINTS size");
-            std::vector<std::array<std::uint8_t, 16>> ipv6s;
-            for (std::uint16_t idx = 0; idx < len; idx += 16)
+            NSTL2_THROW_EXCEPTION_IF(len % ipv6_size != 0, "Invalid IPV6HINTS size");
+            std::vector<ipv6_addr> ipv6s;
+            for (std::uint16_t idx = 0; idx < len; idx += ipv6_size)
             {
                 auto& tgt = ipv6s.emplace_back();
                 std::memcpy(tgt.data(), v + idx, tgt.size());

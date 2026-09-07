@@ -89,16 +89,16 @@ std::optional<std::vector<gen_svcb>> svcb_name(const std::string& name_, const S
 
 namespace
 {
-void inet4_to_os(std::ostream& os_, std::uint32_t ip_)
+void inet4_to_os(std::ostream& os_, const ipv4_addr& ip_)
 {
     std::array<char, INET_ADDRSTRLEN> buffer;
-    const char* ptr = ::inet_ntop(AF_INET, &ip_, buffer.data(), buffer.size());
+    const char* ptr = ::inet_ntop(AF_INET, ip_.data(), buffer.data(), buffer.size());
     NSTL2_THROW_EXCEPTION_IF(!ptr, "inet_ntop failed");
     const std::string_view ip_name{ ptr, strnlen(ptr, buffer.size()) };
     os_ << ip_name;
 }
 
-void inet6_to_os(std::ostream& os_, const std::array<std::uint8_t, 16>& ip_)
+void inet6_to_os(std::ostream& os_, const ipv6_addr& ip_)
 {
     std::array<char, INET6_ADDRSTRLEN> buffer;
     const char* ptr = ::inet_ntop(AF_INET6, ip_.data(), buffer.data(), buffer.size());
@@ -113,10 +113,14 @@ struct param_visitor
     explicit param_visitor(std::ostream& os_) : oss{ os_ } {}
 
     void operator()(const std::monostate&) const { oss << "NO_DEF_ALPN"; }
-    void operator()(const std::vector<std::uint16_t>& keys_) const { oss << "KEYS={" << range_print(keys_, ',') << '}'; }
+    void operator()(const std::vector<std::uint16_t>& keys_) const
+    {
+        oss << "KEYS={" << range_print(keys_, ',') << '}';
+    }
     void operator()(const std::string& doh_) const { oss << "DOH=\"" << doh_ << '\"'; }
     void operator()(const std::uint16_t port_) const { oss << "PORT=" << port_; }
-    void operator()(const std::vector<std::string>& alpns_) const {
+    void operator()(const std::vector<std::string>& alpns_) const
+    {
         oss << "ALPNS={";
         if (!alpns_.empty())
         {
@@ -124,7 +128,7 @@ struct param_visitor
         }
         oss << '}';
     }
-    void operator()(const std::vector<std::uint32_t>& ipv4s_) const
+    void operator()(const std::vector<ipv4_addr>& ipv4s_) const
     {
         oss << "IPV4S={";
         if (auto itr = ipv4s_.cbegin(); itr != ipv4s_.cend())
@@ -138,13 +142,13 @@ struct param_visitor
         }
         oss << '}';
     }
-    void operator()(const std::vector<std::array<std::uint8_t, 16>>& ipv4s_) const
+    void operator()(const std::vector<ipv6_addr>& ipv6s_) const
     {
         oss << "IPV6S={";
-        if (auto itr = ipv4s_.cbegin(); itr != ipv4s_.cend())
+        if (auto itr = ipv6s_.cbegin(); itr != ipv6s_.cend())
         {
             inet6_to_os(oss, *itr);
-            while (++itr != ipv4s_.cend())
+            while (++itr != ipv6s_.cend())
             {
                 oss << ",";
                 inet6_to_os(oss, *itr);
@@ -153,7 +157,7 @@ struct param_visitor
         oss << '}';
     }
 };
-}
+} // namespace
 
 std::ostream& operator<<(std::ostream& os_, const gen_svcb& item)
 {
@@ -175,8 +179,8 @@ std::ostream& operator<<(std::ostream& os_, const gen_svcb& item)
 std::variant<std::monostate, ipv4_addr, ipv6_addr> parseIpAddress(const char* ipaddr_)
 {
     NSTL2_THROW_EXCEPTION_IF(!ipaddr_, "input is nullptr");
-    ipv4_addr ipv4 = 0;
-    if (::inet_pton(AF_INET, ipaddr_, &ipv4) == 1)
+    ipv4_addr ipv4;
+    if (::inet_pton(AF_INET, ipaddr_, ipv4.data()) == 1)
     {
         return ipv4;
     }
@@ -196,12 +200,12 @@ struct ip_visitor
     std::string operator()(const ipv4_addr& ip_) const { return writeIpAddress(ip_); }
     std::string operator()(const ipv6_addr& ip_) const { return writeIpAddress(ip_); }
 };
-}
+} // namespace
 
 std::string writeIpAddress(const ipv4_addr& ip_)
 {
     std::array<char, INET_ADDRSTRLEN> buffer;
-    const char* ptr = ::inet_ntop(AF_INET, &ip_, buffer.data(), buffer.size());
+    const char* ptr = ::inet_ntop(AF_INET, ip_.data(), buffer.data(), buffer.size());
     NSTL2_THROW_EXCEPTION_IF(!ptr, "IP cannot converted to string");
     return std::string{ ptr, strnlen(ptr, buffer.size()) };
 }
@@ -209,7 +213,7 @@ std::string writeIpAddress(const ipv4_addr& ip_)
 std::string writeIpAddress(const ipv6_addr& ip_)
 {
     std::array<char, INET6_ADDRSTRLEN> buffer;
-    const char* ptr = ::inet_ntop(AF_INET6, &ip_, buffer.data(), buffer.size());
+    const char* ptr = ::inet_ntop(AF_INET6, ip_.data(), buffer.data(), buffer.size());
     NSTL2_THROW_EXCEPTION_IF(!ptr, "IP cannot converted to string");
     return std::string{ ptr, strnlen(ptr, buffer.size()) };
 }
@@ -218,23 +222,35 @@ std::string writeIpAddress(const std::variant<ipv4_addr, ipv6_addr>& addr_) { re
 
 std::string writeIpAddress(const std::span<const std::uint8_t> ip_)
 {
-    NSTL2_THROW_EXCEPTION_IF(ip_.size() != 4 && ip_.size() != 16, "Blob size is invalid (4 or 16 expected)");
+    NSTL2_THROW_EXCEPTION_IF(ip_.size() != ipv4_size && ip_.size() != ipv6_size,
+                             "Blob size is invalid (4 or 16 expected)");
     std::array<char, INET6_ADDRSTRLEN> buffer;
-    const int family = ip_.size() == 4 ? AF_INET : AF_INET6;
+    const int family = ip_.size() == ipv4_size ? AF_INET : AF_INET6;
     const char* ptr = ::inet_ntop(family, ip_.data(), buffer.data(), buffer.size());
     NSTL2_THROW_EXCEPTION_IF(!ptr, "IP cannot converted to string");
     return std::string{ ptr, strnlen(ptr, buffer.size()) };
 }
 
-std::optional<ipv4_addr> is_ipv4(const ipv6_addr& addr_)
+std::optional<ipv4_addr> is_ipv4(const std::span<const std::uint8_t> addr_)
 {
-    constexpr std::array<std::uint8_t, 12> prefix{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
-    if (std::memcmp(prefix.data(), addr_.data(), prefix.size()) == 0)
+    constexpr std::array<std::uint8_t, 12> prefix{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                                   0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
+    if (addr_.size() == ipv4_size)
     {
-        ipv4_addr retval = 0;
-        std::memcpy(&retval, addr_.data() + 12, 4);
+        ipv4_addr retval;
+        std::memcpy(retval.data(), addr_.data(), retval.size());
         return retval;
     }
-    return std::nullopt;
+    else if (addr_.size() == ipv6_size)
+    {
+        if (std::memcmp(prefix.data(), addr_.data(), prefix.size()) == 0)
+        {
+            ipv4_addr retval;
+            std::memcpy(retval.data(), addr_.data() + prefix.size(), retval.size());
+            return retval;
+        }
+        return std::nullopt;
+    }
+    NSTL2_THROW_EXCEPTION("Address is not 4 or 16 bytes long: it is not either IPv4 or IPv6");
 }
 } // namespace nstl::net

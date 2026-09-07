@@ -1,5 +1,7 @@
 #include <nstl/dns_tools.hpp>
 #include <nstl/logging.hpp>
+#include <nstl/env_var_raii.hpp>
+#include <nstl/range_print.hpp>
 
 #include <gtest/gtest.h>
 
@@ -124,6 +126,22 @@ TEST(DnsTools, Svcb)
     NSTL_INFO("SVCB request passed " << oss_svcb.view());
 }
 
+TEST(DnsTools, SvcbResolver)
+{
+    if (const auto dns_value = nstl::get_env_var("NSTL_RESOLVER_TEST_ENABLED"); !dns_value.empty())
+    {
+        const auto svcb_opt = nstl::net::svcb_name("_dns.resolver.arpa");
+        ASSERT_TRUE(svcb_opt.has_value());
+        const auto& dns_values = svcb_opt.value();
+        EXPECT_TRUE(std::any_of(dns_values.cbegin(), dns_values.cend(),
+            [dns_value](const nstl::net::gen_svcb& item)
+            {
+                return item.address == dns_value; }))
+            << dns_value << " cannot be resolved as _dns.resolver.arpa (values: " << nstl::range_print(dns_values, ", ")
+            << ')';
+    }
+}
+
 TEST(DnsTools, IpTools)
 {
     {
@@ -131,6 +149,8 @@ TEST(DnsTools, IpTools)
         const auto ipv6ptr = std::get_if<nstl::net::ipv6_addr>(&address_v6);
         ASSERT_NE(ipv6ptr, nullptr);
         EXPECT_EQ(nstl::net::writeIpAddress(*ipv6ptr), "2606:4700::6812:1c07");
+        const auto ipv4 = nstl::net::is_ipv4(*ipv6ptr);
+        EXPECT_FALSE(ipv4.has_value());
     }
     {
         const auto address_v4 = nstl::net::parseIpAddress("192.168.1.254");

@@ -40,8 +40,11 @@ struct gen_srv
 std::optional<std::vector<gen_srv>> srv_name(const char* name_);
 std::optional<std::vector<gen_srv>> srv_name(const std::string& name_);
 
-using ipv4_addr = std::uint32_t;
-using ipv6_addr = std::array<std::uint8_t, 16>;
+constexpr const size_t ipv4_size = 4;
+constexpr const size_t ipv6_size = 16;
+
+using ipv4_addr = std::array<std::uint8_t, ipv4_size>;
+using ipv6_addr = std::array<std::uint8_t, ipv6_size>;
 
 using svcb_param = std::variant<
     std::monostate, // no default alpn
@@ -77,7 +80,7 @@ std::string writeIpAddress(const ipv4_addr& ip_);
 std::string writeIpAddress(const ipv6_addr& ip_);
 std::string writeIpAddress(std::span<const std::uint8_t> ip_);
 std::string writeIpAddress(const std::variant<ipv4_addr, ipv6_addr>& addr_);
-std::optional<ipv4_addr> is_ipv4(const ipv6_addr& addr_);
+std::optional<ipv4_addr> is_ipv4(std::span<const std::uint8_t> addr_);
 } // namespace nstl::net
 
 #endif

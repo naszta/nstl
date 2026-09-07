@@ -233,11 +233,12 @@ std::optional<svcb_param> convert_param(const DNS_SVCB_PARAM& param_)
     }
     case Ipv4Hint:
     {
-        std::vector<std::uint32_t> ipv4s;
+        std::vector<ipv4_addr> ipv4s;
         ipv4s.reserve(param_.pIpv4Hints->cIps);
         for (WORD idx = 0; idx < param_.pIpv4Hints->cIps; ++idx)
         {
-            ipv4s.push_back(param_.pIpv4Hints->rgIps[idx]);
+            auto& target = ipv4s.emplace_back();
+            std::memcpy(target.data(), &param_.pIpv4Hints->rgIps[idx], target.size());
         }
         retval.emplace(std::move(ipv4s));
         return retval;

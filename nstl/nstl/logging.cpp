@@ -1,5 +1,6 @@
 #include "logging.hpp"
 #include "exception.hpp"
+#include "string.hpp"
 
 #include <cstdlib>
 
@@ -261,9 +262,14 @@ void Logger::reset()
 
 const date::time_zone* LogTimeZone::_parse_zone(const std::string_view zone_) const
 {
+    constexpr std::string_view utc_view{ "utc" };
     if (zone_.empty())
     {
         return date::current_zone();
+    }
+    else if (iequal(zone_, utc_view))
+    {
+        return nullptr;
     }
     else
     {

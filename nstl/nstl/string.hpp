@@ -83,6 +83,23 @@ std::basic_string_view<CharT, TraitsT> trim_view(std::basic_string_view<CharT, T
 {
     return right_trim_view(left_trim_view(view_));
 }
+
+template <class CharT, class TraitsT>
+bool iequal(const std::basic_string_view<CharT, TraitsT> left_, const std::basic_string_view<CharT, TraitsT> right_)
+{
+    if (left_.size() != right_.size())
+    {
+        return false;
+    }
+    for (size_t idx = 0; idx < left_.size(); ++idx)
+    {
+        if (std::tolower(left_[idx]) != std::tolower(right_[idx]))
+        {
+            return false;
+        }
+    }
+    return true;
+}
 } // namespace nstl
 
 #endif

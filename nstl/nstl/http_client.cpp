@@ -118,6 +118,7 @@ Client::Client(Client&& other_) noexcept
     : _curl{ std::move(other_._curl) }, _headers{ std::move(other_._headers) }, _cbs{std::move(other_._cbs)}
 {
     std::memcpy(_error.data(), other_._error.data(), _error.size());
+    std::memset(other_._error.data(), 0, other_._error.size());
 }
 
 Client& Client::operator = (Client&& other_) noexcept
@@ -125,6 +126,7 @@ Client& Client::operator = (Client&& other_) noexcept
     if (this != &other_)
     {
         std::memcpy(_error.data(), other_._error.data(), _error.size());
+        std::memset(other_._error.data(), 0, other_._error.size());
         _curl = std::move(other_._curl);
         _headers = std::move(other_._headers);
         _cbs = std::move(other_._cbs);
@@ -313,7 +315,7 @@ const std::regex& reg_item()
 
 bool is_valid_url(const std::string_view url_) { return std::regex_match(url_.cbegin(), url_.cend(), reg_item()); }
 
-bool is_valid_url(std::string_view url_, view_results& result_)
+bool is_valid_url(const std::string_view url_, view_results& result_)
 {
     return std::regex_match(url_.cbegin(), url_.cend(), result_, reg_item());
 }

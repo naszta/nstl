@@ -19,15 +19,16 @@ namespace nstl
 {
 namespace
 {
+constexpr int invalid_file_handle = -1;
 std::atomic_bool init_done{false};
-std::atomic_int sfd_global{-1};
+std::atomic_int sfd_global{ invalid_file_handle };
 
 #ifdef __linux__
 int openSignalFile(const bool signal_init_)
 {
     if (!signal_init_)
     {
-        return -1;
+        return invalid_file_handle;
     }
     sigset_t mask, orig;
     ::sigemptyset(&mask);
@@ -40,7 +41,7 @@ int openSignalFile(const bool signal_init_)
     return sfd;
 }
 #else
-int openSignalFile(bool /* signal_init_ */) { return -1; }
+int openSignalFile(const bool) { return invalid_file_handle; }
 #endif
 } // namespace
 
@@ -78,7 +79,7 @@ global_init::~global_init()
     }
 
 #ifdef __linux__
-    if (const int sfd = sfd_global.exchange(-1); 0 <= sfd)
+    if (const int sfd = sfd_global.exchange(invalid_file_handle); 0 <= sfd)
     {
         ::close(sfd);
     }

@@ -1,6 +1,7 @@
 #include "file_trigger.hpp"
 #include "exception.hpp"
 #include "handle_raii.hpp"
+#include "logging.hpp"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -10,6 +11,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstring>
+#include <exception>
 #include <thread>
 #include <vector>
 
@@ -20,7 +22,7 @@ namespace
 // Regular disk files essentially never complete overlapped reads
 // asynchronously: once we hit EOF we have no event to wait on, so we poll
 // at this interval until either new data appears or stop() is requested.
-constexpr std::chrono::duration<DWORD, std::milli> eof_poll_interval{100};
+constexpr std::chrono::duration<DWORD, std::milli> eof_poll_interval{ 100 };
 
 void set_overlapped_offset(OVERLAPPED& ov_, std::uint64_t offset_)
 {
@@ -31,24 +33,37 @@ void set_overlapped_offset(OVERLAPPED& ov_, std::uint64_t offset_)
 std::uint64_t query_file_size(const HandleRaii& handle_)
 {
     LARGE_INTEGER size{};
-    NSTL2_THROW_EXCEPTION_IF(!::GetFileSizeEx(static_cast<HANDLE>(handle_), &size), "GetFileSizeEx failed: " << GetLastError());
+    NSTL2_THROW_EXCEPTION_IF(!::GetFileSizeEx(static_cast<HANDLE>(handle_), &size),
+                             "GetFileSizeEx failed: " << GetLastError());
     return static_cast<std::uint64_t>(size.QuadPart);
 }
-}
+} // namespace
 
 class file_trigger_win32 : public file_trigger
 {
     const HandleRaii _file;
     const HandleRaii _exit_event;
     const data_cb _cb;
-    const bool _sow{false};
-    const std::uint64_t _sow_boundary{0};
-    const size_t _buffer_size{0};
+    const bool _sow{ false };
+    const std::uint64_t _sow_boundary{ 0 };
+    const size_t _buffer_size{ 0 };
 
-    std::atomic_bool _running{true};
+    std::atomic_bool _running{ true };
     std::thread _runner;
 
     void _worker() const
+    {
+        try
+        {
+            this->_worker_impl();
+        }
+        catch (const std::exception& ex_)
+        {
+            NSTL_ERROR("file_trigger worker stopped due to an exception: " << ex_.what());
+        }
+    }
+
+    void _worker_impl() const
     {
         const HandleRaii file_event{ ::CreateEvent(NULL, TRUE, FALSE, NULL) };
         NSTL2_THROW_EXCEPTION_IF(!file_event, "File event cannot be created");
@@ -56,9 +71,7 @@ class file_trigger_win32 : public file_trigger
         std::vector<char> buffer;
         buffer.resize(_buffer_size);
 
-        const std::array<HANDLE, 2> handles{
-            static_cast<HANDLE>(file_event), static_cast<HANDLE>(_exit_event)
-        };
+        const std::array<HANDLE, 2> handles{ static_cast<HANDLE>(file_event), static_cast<HANDLE>(_exit_event) };
 
         std::uint64_t file_offset = 0;
 
@@ -81,7 +94,8 @@ class file_trigger_win32 : public file_trigger
                 const DWORD err_val = GetLastError();
                 if (err_val == ERROR_IO_PENDING)
                 {
-                    const auto response = ::WaitForMultipleObjects(static_cast<DWORD>(handles.size()), handles.data(), FALSE, INFINITE);
+                    const auto response =
+                        ::WaitForMultipleObjects(static_cast<DWORD>(handles.size()), handles.data(), FALSE, INFINITE);
                     if (response == WAIT_OBJECT_0 + 1)
                     {
                         // Cancel and drain the outstanding read before we tear down
@@ -92,11 +106,15 @@ class file_trigger_win32 : public file_trigger
                         ::GetOverlappedResult(static_cast<HANDLE>(_file), &ov, &discarded, TRUE);
                         return;
                     }
-                    NSTL2_THROW_EXCEPTION_IF(response == WAIT_TIMEOUT, "WAIT_TIMEOUT doesn't make any sense: INFINITE timeout was set");
-                    NSTL2_THROW_EXCEPTION_IF(WAIT_ABANDONED_0 <= response && response < WAIT_ABANDONED_0 + handles.size(),
-                                                response - WAIT_ABANDONED_0 << " handle abandoned");
-                    NSTL2_THROW_EXCEPTION_IF(response == WAIT_FAILED, "WaitForMultipleObjects failed: " << GetLastError());
-                    NSTL2_THROW_EXCEPTION_IF(response != WAIT_OBJECT_0, response << " unexpected output from WaitForMultipleObjects");
+                    NSTL2_THROW_EXCEPTION_IF(response == WAIT_TIMEOUT,
+                                             "WAIT_TIMEOUT doesn't make any sense: INFINITE timeout was set");
+                    NSTL2_THROW_EXCEPTION_IF(WAIT_ABANDONED_0 <= response &&
+                                                 response < WAIT_ABANDONED_0 + handles.size(),
+                                             response - WAIT_ABANDONED_0 << " handle abandoned");
+                    NSTL2_THROW_EXCEPTION_IF(response == WAIT_FAILED,
+                                             "WaitForMultipleObjects failed: " << GetLastError());
+                    NSTL2_THROW_EXCEPTION_IF(response != WAIT_OBJECT_0,
+                                             response << " unexpected output from WaitForMultipleObjects");
                     completed = true;
                 }
                 else
@@ -140,19 +158,22 @@ class file_trigger_win32 : public file_trigger
 
             if (eof)
             {
-                const auto response = ::WaitForSingleObject(static_cast<HANDLE>(_exit_event), eof_poll_interval.count());
+                const auto response =
+                    ::WaitForSingleObject(static_cast<HANDLE>(_exit_event), eof_poll_interval.count());
                 if (response == WAIT_OBJECT_0)
                 {
                     return;
                 }
                 NSTL2_THROW_EXCEPTION_IF(response == WAIT_FAILED, "WaitForSingleObject failed: " << GetLastError());
-                NSTL2_THROW_EXCEPTION_IF(response != WAIT_TIMEOUT, response << " unexpected output from WaitForSingleObject");
+                NSTL2_THROW_EXCEPTION_IF(response != WAIT_TIMEOUT,
+                                         response << " unexpected output from WaitForSingleObject");
             }
         }
     }
 
 public:
-    file_trigger_win32(HandleRaii hndl_, data_cb cb_, bool const sow_, const size_t buffer_size_, const std::uint64_t sow_boundary_)
+    file_trigger_win32(HandleRaii hndl_, data_cb cb_, bool const sow_, const size_t buffer_size_,
+                       const std::uint64_t sow_boundary_)
         : _file{ std::move(hndl_) }, _exit_event{ ::CreateEvent(NULL, TRUE, FALSE, NULL) }, _cb{ std::move(cb_) },
           _sow{ sow_ }, _sow_boundary{ sow_boundary_ }, _buffer_size{ buffer_size_ }
     {
@@ -178,7 +199,9 @@ public:
 std::shared_ptr<file_trigger> file_trigger::factory(const std::filesystem::path& file_, data_cb cb_, const bool sow_,
                                                     const size_t buffer_size_)
 {
-    HandleRaii handler{::CreateFileW(file_.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED | FILE_FLAG_SEQUENTIAL_SCAN, NULL)};
+    HandleRaii handler{ ::CreateFileW(file_.c_str(), GENERIC_READ,
+                                      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING,
+                                      FILE_FLAG_OVERLAPPED | FILE_FLAG_SEQUENTIAL_SCAN, NULL) };
     NSTL2_THROW_EXCEPTION_IF(!handler, file_ << " cannot be opened to read");
     NSTL2_THROW_EXCEPTION_IF(!cb_, "invalid callback");
     NSTL2_THROW_EXCEPTION_IF(buffer_size_ == 0, "Buffer must not be empty");
@@ -189,7 +212,7 @@ std::shared_ptr<file_trigger> file_trigger::factory(const std::filesystem::path&
 std::shared_ptr<file_trigger> file_trigger::factory(file_trigger::native_handle hndl_, data_cb cb_, const bool sow_,
                                                     const size_t buffer_size_)
 {
-    HandleRaii handler{hndl_};
+    HandleRaii handler{ hndl_ };
     NSTL2_THROW_EXCEPTION_IF(!handler, "Invalid handler set");
     NSTL2_THROW_EXCEPTION_IF(!cb_, "invalid callback");
     NSTL2_THROW_EXCEPTION_IF(buffer_size_ == 0, "Buffer must not be empty");
@@ -205,4 +228,4 @@ nstl::file_trigger::native_handle open_native(const std::filesystem::path& path_
     return ::CreateFileW(path_.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
                          OPEN_EXISTING, FILE_FLAG_OVERLAPPED | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
 }
-}
+} // namespace nstl

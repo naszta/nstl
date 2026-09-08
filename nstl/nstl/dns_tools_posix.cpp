@@ -53,19 +53,26 @@ std::vector<svcb_param> resolve_params(const uint8_t* p, const uint8_t* end)
 
             const uint8_t* q = v;
             const uint8_t* vend = v + len;
+            bool valid = true;
             while (q < vend)
             {
                 const uint8_t l = *q++;
-                NSTL2_THROW_EXCEPTION_IF(vend < q + l, "Invalid ALPN request");
+                if (vend < q + l) [[unlikely]]
+                {
+                    valid = false;
+                    break;
+                }
                 std::string value{ reinterpret_cast<const char*>(q), l };
                 alpns.push_back(std::move(value));
                 q += l;
             }
-            retval.emplace_back(std::move(alpns));
+            if (valid)
+            {
+                retval.emplace_back(std::move(alpns));
+            }
             break;
         }
         case KEY_PORT:
-            NSTL2_THROW_EXCEPTION_IF(len != 2, "Invalid port keys size");
             if (len == 2)
             {
                 std::uint16_t port = ns_get16(v);
@@ -74,38 +81,44 @@ std::vector<svcb_param> resolve_params(const uint8_t* p, const uint8_t* end)
             break;
         case KEY_MANDATORY:
         {
-            NSTL2_THROW_EXCEPTION_IF(len % 2 != 0, "Invalid mandatory keys size");
-            std::vector<std::uint16_t> keys;
-            for (std::uint16_t idx = 0; idx < len; idx += 2)
+            if (len % 2 == 0)
             {
-                keys.push_back(ns_get16(v + idx));
+                std::vector<std::uint16_t> keys;
+                for (std::uint16_t idx = 0; idx < len; idx += 2)
+                {
+                    keys.push_back(ns_get16(v + idx));
+                }
+                retval.emplace_back(std::move(keys));
             }
-            retval.emplace_back(std::move(keys));
             break;
         }
         case KEY_IPV4HINT:
         {
-            NSTL2_THROW_EXCEPTION_IF(len % ipv4_size != 0, "Invalid IPV4HINTS size");
-            std::vector<ipv4_addr> ipv4s;
-
-            for (std::uint16_t idx = 0; idx < len; idx += ipv4_size)
+            if (len % ipv4_size == 0)
             {
-                auto& tgt = ipv4s.emplace_back();
-                std::memcpy(tgt.data(), v + idx, tgt.size());
+                std::vector<ipv4_addr> ipv4s;
+
+                for (std::uint16_t idx = 0; idx < len; idx += ipv4_size)
+                {
+                    auto& tgt = ipv4s.emplace_back();
+                    std::memcpy(tgt.data(), v + idx, tgt.size());
+                }
+                retval.emplace_back(std::move(ipv4s));
             }
-            retval.emplace_back(std::move(ipv4s));
             break;
         }
         case KEY_IPV6HINT:
         {
-            NSTL2_THROW_EXCEPTION_IF(len % ipv6_size != 0, "Invalid IPV6HINTS size");
-            std::vector<ipv6_addr> ipv6s;
-            for (std::uint16_t idx = 0; idx < len; idx += ipv6_size)
+            if (len % ipv6_size == 0)
             {
-                auto& tgt = ipv6s.emplace_back();
-                std::memcpy(tgt.data(), v + idx, tgt.size());
+                std::vector<ipv6_addr> ipv6s;
+                for (std::uint16_t idx = 0; idx < len; idx += ipv6_size)
+                {
+                    auto& tgt = ipv6s.emplace_back();
+                    std::memcpy(tgt.data(), v + idx, tgt.size());
+                }
+                retval.emplace_back(std::move(ipv6s));
             }
-            retval.emplace_back(std::move(ipv6s));
             break;
         }
         case KEY_NO_DEF_ALPN:
@@ -152,8 +165,10 @@ class DnsClient
         }
 
         ns_msg message;
-        NSTL2_THROW_EXCEPTION_IF(ns_initparse(_response.data(), length, &message) < 0,
-                                 "ns_initparse failed (" << length << " vs " << _response.size() << ')');
+        if (ns_initparse(_response.data(), length, &message) < 0) [[unlikely]]
+        {
+            return false;
+        }
 
         const int count = ns_msg_count(message, ns_s_an);
 
@@ -190,8 +205,10 @@ public:
                        for (int idx = 0; idx < count; ++idx)
                        {
                            ns_rr raw_record;
-                           NSTL2_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0,
-                                                    "Failed to parse DNS message");
+                           if (ns_parserr(&message, ns_s_an, idx, &raw_record) < 0)
+                           {
+                               continue;
+                           }
                            // message is not MX
                            if (ns_rr_class(raw_record) != ns_c_in || ns_rr_type(raw_record) != tgt_type)
                            {
@@ -210,7 +227,10 @@ public:
                            const int expanded_length =
                                dn_expand(ns_msg_base(message), ns_msg_end(message), rdata + NS_INT16SZ,
                                          item_name.data(), item_name.size());
-                           NSTL2_THROW_EXCEPTION_IF(expanded_length < 0, "invalid response");
+                           if (expanded_length < 0)
+                           {
+                               continue;
+                           }
 
                            mx_srv item{ .address = std::string{ item_name.data(),
                                                                 strnlen(item_name.data(),
@@ -238,8 +258,10 @@ public:
                                        for (int idx = 0; idx < count; ++idx)
                                        {
                                            ns_rr raw_record;
-                                           NSTL2_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0,
-                                                                    "Failed to parse DNS message");
+                                           if (ns_parserr(&message, ns_s_an, idx, &raw_record) < 0)
+                                           {
+                                               continue;
+                                           }
                                            // message is not TXT
                                            if (ns_rr_class(raw_record) != ns_c_in || ns_rr_type(raw_record) != tgt_type)
                                            {
@@ -251,14 +273,23 @@ public:
                                            const auto end = rdata + rdata_length;
 
                                            std::string item;
+                                           bool valid = true;
 
                                            for (auto p = rdata, next_p = p; p < end; p = next_p)
                                            {
                                                const std::uint8_t text_len = *p;
                                                ++p;
                                                next_p = p + text_len;
-                                               NSTL2_THROW_EXCEPTION_IF(end < next_p, "Invalid TXT record");
+                                               if (end < next_p)
+                                               {
+                                                   valid = false;
+                                                   break;
+                                               }
                                                item.append(reinterpret_cast<const char*>(p), text_len);
+                                           }
+                                           if (!valid)
+                                           {
+                                               continue;
                                            }
                                            if (!retval.has_value())
                                            {
@@ -282,8 +313,10 @@ public:
                                        for (int idx = 0; idx < count; ++idx)
                                        {
                                            ns_rr raw_record;
-                                           NSTL2_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0,
-                                                                    "Failed to parse DNS message");
+                                           if (ns_parserr(&message, ns_s_an, idx, &raw_record) < 0)
+                                           {
+                                               continue;
+                                           }
                                            // message is not TXT
                                            if (ns_rr_class(raw_record) != ns_c_in || ns_rr_type(raw_record) != tgt_type)
                                            {
@@ -294,7 +327,10 @@ public:
 
                                            const int len = dn_expand(ns_msg_base(message), ns_msg_end(message), rdata,
                                                                      item_name.data(), item_name.size());
-                                           NSTL2_THROW_EXCEPTION_IF(len < 0, "invalid response");
+                                           if (len < 0)
+                                           {
+                                               continue;
+                                           }
                                            std::string cname{ item_name.data(),
                                                               strnlen(item_name.data(), static_cast<size_t>(len)) };
                                            if (!retval.has_value())
@@ -319,8 +355,10 @@ public:
                                        for (int idx = 0; idx < count; ++idx)
                                        {
                                            ns_rr raw_record;
-                                           NSTL2_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0,
-                                                                    "Failed to parse DNS message");
+                                           if (ns_parserr(&message, ns_s_an, idx, &raw_record) < 0)
+                                           {
+                                               continue;
+                                           }
                                            // message is not TXT
                                            if (ns_rr_class(raw_record) != ns_c_in || ns_rr_type(raw_record) != tgt_type)
                                            {
@@ -328,7 +366,10 @@ public:
                                            }
                                            const auto rdata = ns_rr_rdata(raw_record);
                                            const auto size = ns_rr_rdlen(raw_record);
-                                           NSTL2_THROW_EXCEPTION_IF(size <= 6, "Invalid SRV record");
+                                           if (size <= 6)
+                                           {
+                                               continue;
+                                           }
 
                                            gen_srv record;
                                            record.priority = ns_get16(rdata);
@@ -337,7 +378,10 @@ public:
                                            std::array<char, NS_MAXDNAME> item_name;
                                            const int len = dn_expand(ns_msg_base(message), ns_msg_end(message),
                                                                      rdata + 6, item_name.data(), item_name.size());
-                                           NSTL2_THROW_EXCEPTION_IF(len < 0, "invalid response");
+                                           if (len < 0)
+                                           {
+                                               continue;
+                                           }
                                            record.address.assign(item_name.data(),
                                                                  strnlen(item_name.data(), static_cast<size_t>(len)));
 
@@ -363,8 +407,10 @@ public:
                                        for (int idx = 0; idx < count; ++idx)
                                        {
                                            ns_rr raw_record;
-                                           NSTL2_THROW_EXCEPTION_IF(ns_parserr(&message, ns_s_an, idx, &raw_record) < 0,
-                                                                    "Failed to parse DNS message");
+                                           if (ns_parserr(&message, ns_s_an, idx, &raw_record) < 0)
+                                           {
+                                               continue;
+                                           }
                                            // message is not TXT
                                            if (ns_rr_class(raw_record) != ns_c_in || ns_rr_type(raw_record) != tgt_type)
                                            {
@@ -385,7 +431,10 @@ public:
                                            std::array<char, NS_MAXDNAME> buffer;
                                            const int buff_n = dn_expand(ns_msg_base(message), ns_msg_end(message), p,
                                                                         buffer.data(), buffer.size());
-                                           NSTL2_THROW_EXCEPTION_IF(buff_n < 0, "dn_expand failed");
+                                           if (buff_n < 0)
+                                           {
+                                               continue;
+                                           }
                                            p += buff_n;
                                            if (buffer[0] == '\0')
                                            {

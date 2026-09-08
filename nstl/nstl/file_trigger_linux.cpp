@@ -1,6 +1,7 @@
 #include "file_trigger.hpp"
 #include "exception.hpp"
 #include "handle_raii.hpp"
+#include "logging.hpp"
 
 #include <sys/stat.h>
 #include <sys/epoll.h>
@@ -13,6 +14,7 @@
 
 #include <array>
 #include <atomic>
+#include <exception>
 #include <string>
 #include <thread>
 #include <utility>
@@ -42,7 +44,7 @@ class file_trigger_linux : public file_trigger
     const FileIntRaii _hndl;
     const data_cb _cb;
     const bool _sow{ true };
-    const size_t _buffer_size{0};
+    const size_t _buffer_size{ 0 };
     FileIntRaii _inotify_fd;
     FileIntRaii _exit_read;
     FileIntRaii _exit_write;
@@ -90,6 +92,18 @@ class file_trigger_linux : public file_trigger
     }
 
     void _worker()
+    {
+        try
+        {
+            this->_worker_impl();
+        }
+        catch (const std::exception& ex_)
+        {
+            NSTL_ERROR("file_trigger worker stopped due to an exception: " << ex_.what());
+        }
+    }
+
+    void _worker_impl()
     {
         const FileIntRaii epfd{ ::epoll_create1(EPOLL_CLOEXEC) };
         // register the inotify fd watching the target file:
@@ -179,7 +193,8 @@ public:
     }
 };
 
-std::shared_ptr<file_trigger> file_trigger::factory(const std::filesystem::path& file_, data_cb cb_, const bool sow_, const size_t buffer_size_)
+std::shared_ptr<file_trigger> file_trigger::factory(const std::filesystem::path& file_, data_cb cb_, const bool sow_,
+                                                    const size_t buffer_size_)
 {
     FileIntRaii hndl{ open_native(file_) };
     NSTL2_THROW_EXCEPTION_IF(!hndl, file_ << " cannot be opened for read");
@@ -188,7 +203,8 @@ std::shared_ptr<file_trigger> file_trigger::factory(const std::filesystem::path&
     return std::make_shared<file_trigger_linux>(std::move(hndl), std::move(cb_), sow_, buffer_size_);
 }
 
-std::shared_ptr<file_trigger> file_trigger::factory(native_handle handle_, data_cb cb_, const bool sow_, const size_t buffer_size_)
+std::shared_ptr<file_trigger> file_trigger::factory(native_handle handle_, data_cb cb_, const bool sow_,
+                                                    const size_t buffer_size_)
 {
     FileIntRaii hndl{ handle_ };
     NSTL2_THROW_EXCEPTION_IF(!hndl, "Invalid handle passed through");

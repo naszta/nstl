@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
 #include <new>
 #include <stdexcept>
 #include <tuple>
@@ -25,6 +26,11 @@ class vector
 
     Type* _mem_reserve(const size_t new_capacity_)
     {
+        constexpr size_t max_capacity = std::numeric_limits<size_t>::max() / sizeof(Type);
+        if (max_capacity < new_capacity_) [[unlikely]]
+        {
+            throw std::length_error{ "vector capacity would overflow the addressable size" };
+        }
         Type* ptr = reinterpret_cast<Type*>(std::realloc(_ptr, new_capacity_ * sizeof(Type)));
         if (ptr == nullptr) [[unlikely]]
         {

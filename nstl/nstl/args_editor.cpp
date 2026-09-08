@@ -31,9 +31,10 @@ bool is_arg_set(int& argc_, const char** argv_, const char* value_)
                 argv_[last_idx] = ptrval;
             }
             --argc_;
+            --idx;
         }
     }
 
     return found;
 }
-}
+} // namespace nstl

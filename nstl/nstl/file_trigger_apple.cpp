@@ -1,6 +1,7 @@
 #include "file_trigger.hpp"
 #include "exception.hpp"
 #include "handle_raii.hpp"
+#include "logging.hpp"
 
 #include <sys/event.h>
 #include <sys/types.h>
@@ -11,6 +12,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <exception>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -44,7 +46,7 @@ class file_trigger_apple : public file_trigger
     const FileIntRaii _hndl;
     const data_cb _cb;
     const bool _sow{ true };
-    const size_t _buffer_size{0};
+    const size_t _buffer_size{ 0 };
     FileIntRaii _kq;
     FileIntRaii _exit_read;
     FileIntRaii _exit_write;
@@ -85,12 +87,25 @@ class file_trigger_apple : public file_trigger
 
     void _worker()
     {
+        try
+        {
+            this->_worker_impl();
+        }
+        catch (const std::exception& ex_)
+        {
+            NSTL_ERROR("file_trigger worker stopped due to an exception: " << ex_.what());
+        }
+    }
+
+    void _worker_impl()
+    {
         std::array<struct kevent, 2> changes{};
         EV_SET(&changes[0], static_cast<uintptr_t>(static_cast<int>(_hndl)), EVFILT_VNODE, EV_ADD | EV_CLEAR,
                NOTE_WRITE | NOTE_EXTEND, 0, nullptr);
         EV_SET(&changes[1], static_cast<uintptr_t>(static_cast<int>(_exit_read)), EVFILT_READ, EV_ADD, 0, 0, nullptr);
-        NSTL2_THROW_EXCEPTION_IF(::kevent(static_cast<int>(_kq), changes.data(), static_cast<int>(changes.size()), nullptr, 0, nullptr) < 0,
-                                 "kevent failed to register watches");
+        NSTL2_THROW_EXCEPTION_IF(
+            ::kevent(static_cast<int>(_kq), changes.data(), static_cast<int>(changes.size()), nullptr, 0, nullptr) < 0,
+            "kevent failed to register watches");
 
         constexpr int event_size = 16;
         std::array<struct kevent, event_size> events{};
@@ -164,7 +179,8 @@ public:
     }
 };
 
-std::shared_ptr<file_trigger> file_trigger::factory(const std::filesystem::path& file_, data_cb cb_, const bool sow_, const size_t buffer_size_)
+std::shared_ptr<file_trigger> file_trigger::factory(const std::filesystem::path& file_, data_cb cb_, const bool sow_,
+                                                    const size_t buffer_size_)
 {
     FileIntRaii hndl{ open_native(file_) };
     NSTL2_THROW_EXCEPTION_IF(!hndl, file_ << " cannot be opened for read");
@@ -173,7 +189,8 @@ std::shared_ptr<file_trigger> file_trigger::factory(const std::filesystem::path&
     return std::make_shared<file_trigger_apple>(std::move(hndl), std::move(cb_), sow_, buffer_size_);
 }
 
-std::shared_ptr<file_trigger> file_trigger::factory(native_handle handle_, data_cb cb_, const bool sow_, const size_t buffer_size_)
+std::shared_ptr<file_trigger> file_trigger::factory(native_handle handle_, data_cb cb_, const bool sow_,
+                                                    const size_t buffer_size_)
 {
     FileIntRaii hndl{ handle_ };
     NSTL2_THROW_EXCEPTION_IF(!hndl, "Invalid handle passed through");

@@ -19,6 +19,7 @@ void WindowsHandle::free(HANDLE hnd_) const { ::CloseHandle(hnd_); }
 #endif
 
 FileIntHandle::FileIntHandle() = default;
+// in case of file all negative integers are invalid
 bool FileIntHandle::valid(int hnd_) const { return 0 < hnd_; }
 void FileIntHandle::free(int hnd_) const { ::close(hnd_); }
 } // namespace nstl

@@ -57,6 +57,15 @@ inline size_t wcslen(const wchar_t* text_)
     }
     return 0;
 }
+
+inline void secure_zero(void* ptr_, const size_t size_)
+{
+    if (ptr_ == nullptr || size_ == 0) [[unlikely]]
+    {
+        return;
+    }
+    std::memset(ptr_, 0, size_);
+}
 } // namespace nstl
 
 #endif

@@ -97,32 +97,23 @@ TEST(DnsTools, Svcb)
     const auto https_opt = nstl::net::svcb_name("blog.cloudflare.com", nstl::net::SvcbType::Https);
     ASSERT_TRUE(https_opt.has_value());
     std::ostringstream oss_https;
-    for (const auto& item : https_opt.value())
-    {
-        oss_https << item << "\n";
-    }
+    oss_https << nstl::range_print(https_opt.value(), "; ");
     EXPECT_EQ(oss_https.view(), ". 1 [ALPNS={\"h3\",\"h2\"} IPV4S={104.18.28.7,104.18.29.7} "
-                                "IPV6S={2606:4700::6812:1c07,2606:4700::6812:1d07}]\n");
+                                "IPV6S={2606:4700::6812:1c07,2606:4700::6812:1d07}]");
     NSTL_INFO("HTTPS request passed " << oss_https.view());
 
     const auto https2_opt = nstl::net::svcb_name("https.tepj.be", nstl::net::SvcbType::Https);
     ASSERT_TRUE(https2_opt.has_value());
     std::ostringstream oss_https2;
-    for (const auto& item : https2_opt.value())
-    {
-        oss_https2 << item << "\n";
-    }
-    EXPECT_EQ(oss_https2.view(), "naszta.london 42 [ALPNS={\"h2\",\"h3\"} PORT=443]\n");
+    oss_https2 << nstl::range_print(https2_opt.value(), "; ");
+    EXPECT_EQ(oss_https2.view(), "naszta.london 42 [ALPNS={\"h2\",\"h3\"} PORT=443]");
     NSTL_INFO("HTTPS request passed " << oss_https2.view());
 
     const auto svcb_opt = nstl::net::svcb_name("svcb.tepj.be");
     ASSERT_TRUE(svcb_opt.has_value());
     std::ostringstream oss_svcb;
-    for (const auto& item : svcb_opt.value())
-    {
-        oss_svcb << item << "\n";
-    }
-    EXPECT_EQ(oss_svcb.view(), "naszta.london 43 [ALPNS={\"h2\",\"h3\"} PORT=853]\n");
+    oss_svcb << nstl::range_print(svcb_opt.value(), "; ");
+    EXPECT_EQ(oss_svcb.view(), "naszta.london 43 [ALPNS={\"h2\",\"h3\"} PORT=853]");
     NSTL_INFO("SVCB request passed " << oss_svcb.view());
 }
 
@@ -133,12 +124,12 @@ TEST(DnsTools, SvcbResolver)
         const auto svcb_opt = nstl::net::svcb_name("_dns.resolver.arpa");
         ASSERT_TRUE(svcb_opt.has_value());
         const auto& dns_values = svcb_opt.value();
-        EXPECT_TRUE(std::any_of(dns_values.cbegin(), dns_values.cend(),
-            [dns_value](const nstl::net::gen_svcb& item)
-            {
-                return item.address == dns_value; }))
+        const auto itr = std::ranges::find_if(dns_values, [dns_value](const nstl::net::gen_svcb& item)
+                                              { return item.address == dns_value; });
+        ASSERT_NE(itr, dns_values.cend())
             << dns_value << " cannot be resolved as _dns.resolver.arpa (values: " << nstl::range_print(dns_values, ", ")
             << ')';
+        NSTL_INFO("DNS found: " << nstl::range_print(dns_values, "; "));
     }
 }
 

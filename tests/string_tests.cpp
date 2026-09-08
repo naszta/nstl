@@ -133,3 +133,13 @@ TEST(String, SplitWide)
     EXPECT_EQ(items[0], L"value0");
     EXPECT_EQ(items[1], L"value1");
 }
+
+TEST(String, iequal)
+{
+    const std::string_view left{ "local_utc" };
+    const std::string_view right{ "Utc" };
+
+    EXPECT_FALSE(nstl::iequal(left, right));
+    EXPECT_FALSE(nstl::iequal(left.substr(0, right.size()), right));
+    EXPECT_TRUE(nstl::iequal(left.substr(left.size() - right.size(), right.size()), right));
+}

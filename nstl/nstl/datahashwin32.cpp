@@ -32,7 +32,7 @@ struct ThreadProvider
 {
     ThreadProvider()
     {
-        NSTL2_THROW_EXCEPTION_IF(!::CryptAcquireContextA(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT),
+        NSTL2_THROW_EXCEPTION_IF(!::CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT),
                                  "CryptAcquireContextA failed: " << ::GetLastError());
     }
     ~ThreadProvider()

@@ -68,7 +68,8 @@ template <typename Type> inline constexpr observer_ptr<Type> make_observer(Type*
     return observer_ptr<Type>{ p };
 }
 
-template <typename Type> inline constexpr observer_ptr<Type> make_observer(const std::unique_ptr<Type>& p) noexcept
+template <typename Type, typename Deleter>
+inline constexpr observer_ptr<Type> make_observer(const std::unique_ptr<Type, Deleter>& p) noexcept
 {
     return observer_ptr<Type>{ p.get() };
 }

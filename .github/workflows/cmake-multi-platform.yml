@@ -53,6 +53,11 @@ jobs:
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 14
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14
 
+    - name: Install packages (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        choco install -y boost-msvc-14.3
+
     - uses: actions/checkout@v4
       with:
         submodules: 'true'

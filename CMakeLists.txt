@@ -20,22 +20,12 @@ include(FetchContent)
 set(ENABLE_CURL_MANUAL OFF CACHE BOOL "" FORCE)
 set(BUILD_LIBCURL_DOCS OFF CACHE BOOL "" FORCE)
 set(TBB_TEST OFF CACHE BOOL "" FORCE)
+find_package(Boost COMPONENTS headers serialization program_options)
 if(LINUX)
-  find_package(Boost COMPONENTS headers serialization program_options)
   find_package(CURL COMPONENTS HTTPS SSL)
   find_package(TBB REQUIRED)
   find_package(GTest REQUIRED)
 else(LINUX)
-  FetchContent_Declare(
-    Boost
-    GIT_REPOSITORY https://github.com/boostorg/boost.git
-    GIT_TAG boost-1.91.0-1
-    GIT_SHALLOW TRUE
-    SYSTEM
-    EXCLUDE_FROM_ALL
-  )
-  FetchContent_MakeAvailable(Boost)
-
   FetchContent_Declare(
     TBB
     GIT_REPOSITORY https://github.com/uxlfoundation/oneTBB.git

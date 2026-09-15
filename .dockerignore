@@ -5,4 +5,5 @@ out
 .clang-format
 .dockerignore
 Dockerfile
+Dockerfile.windows
 CMakeUserPresets.json

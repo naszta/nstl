@@ -132,32 +132,3 @@ TEST(DnsTools, SvcbResolver)
         NSTL_INFO("DNS found: " << nstl::range_print(dns_values, "; "));
     }
 }
-
-TEST(DnsTools, IpTools)
-{
-    {
-        const auto address_v6 = nstl::net::parseIpAddress("2606:4700::6812:1c07");
-        const auto ipv6ptr = std::get_if<nstl::net::ipv6_addr>(&address_v6);
-        ASSERT_NE(ipv6ptr, nullptr);
-        EXPECT_EQ(nstl::net::writeIpAddress(*ipv6ptr), "2606:4700::6812:1c07");
-        const auto ipv4 = nstl::net::is_ipv4(*ipv6ptr);
-        EXPECT_FALSE(ipv4.has_value());
-    }
-    {
-        const auto address_v4 = nstl::net::parseIpAddress("192.168.1.254");
-        const auto ipv4ptr = std::get_if<nstl::net::ipv4_addr>(&address_v4);
-        ASSERT_NE(ipv4ptr, nullptr);
-        EXPECT_EQ(nstl::net::writeIpAddress(*ipv4ptr), "192.168.1.254");
-    }
-    {
-        const auto tricky = nstl::net::parseIpAddress("0::ffff:0101:0101");
-        const auto trickyptr4 = std::get_if<nstl::net::ipv4_addr>(&tricky);
-        const auto trickyptr6 = std::get_if<nstl::net::ipv6_addr>(&tricky);
-        EXPECT_EQ(trickyptr4, nullptr);
-        ASSERT_NE(trickyptr6, nullptr);
-        const auto ip4val = nstl::net::is_ipv4(*trickyptr6);
-        ASSERT_TRUE(ip4val.has_value());
-        EXPECT_EQ(nstl::net::writeIpAddress(*ip4val), "1.1.1.1");
-        EXPECT_EQ(nstl::net::writeIpAddress(*trickyptr6), "::ffff:1.1.1.1");
-    }
-}

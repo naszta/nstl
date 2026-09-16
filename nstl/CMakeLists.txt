@@ -24,6 +24,7 @@ SET(nstllibHdrs
   nstl/global_init.hpp
   nstl/handle_raii.hpp
   nstl/http_client.hpp
+  nstl/ip_tools.hpp
   nstl/logging.hpp
   nstl/macros.hpp
   nstl/math.hpp
@@ -53,6 +54,7 @@ SET(nstllibSrcs
   nstl/global_init.cpp
   nstl/handle_raii.cpp
   nstl/http_client.cpp
+  nstl/ip_tools.cpp
   nstl/logging.cpp
   nstl/signal_barrier_common.cpp
   nstl/temp_dir.cpp

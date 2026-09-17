@@ -20,7 +20,7 @@ ipv4_addr create_ipv4_mask(const std::uint8_t mask_) { return create_mask<ipv4_s
 ipv6_addr create_ipv6_mask(const std::uint8_t mask_) { return create_mask<ipv6_size>(mask_); }
 
 template <size_t ip_size, size_t str_size, int ip_class>
-std::optional<std::array<std::uint8_t, ip_size>> parse_ip_address(const std::string_view ipaddr_)
+std::optional<ip_addr_base<ip_size>> parse_ip_address(const std::string_view ipaddr_)
 {
     if (str_size <= ipaddr_.size())
     {
@@ -29,7 +29,7 @@ std::optional<std::array<std::uint8_t, ip_size>> parse_ip_address(const std::str
     std::array<char, str_size> buffer;
     std::strncpy(buffer.data(), ipaddr_.data(), ipaddr_.size());
     buffer[ipaddr_.size()] = '\0';
-    std::optional<std::array<std::uint8_t, ip_size>> ipval;
+    std::optional<ip_addr_base<ip_size>> ipval;
     ipval.emplace();
     if (::inet_pton(ip_class, buffer.data(), ipval->data()) == 1)
     {
@@ -184,8 +184,8 @@ std::string to_string(const std::span<const std::uint8_t> ip_)
 
 std::optional<ipv4_addr> is_ipv4(const std::span<const std::uint8_t> addr_)
 {
-    constexpr std::array<std::uint8_t, 12> prefix{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                   0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
+    constexpr ip_addr_base<12> prefix{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                       0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
     if (addr_.size() == ipv4_size)
     {
         ipv4_addr retval;
@@ -223,5 +223,84 @@ bool operator==(const ipv6_range& l_, const ipv6_range& r_)
 bool operator<(const ipv6_range& l_, const ipv6_range& r_)
 {
     return std::tie(l_.ip, l_.mask) < std::tie(r_.ip, r_.mask);
+}
+
+template <size_t ip_size>
+class address_checker
+{
+    const ip_addr_base<ip_size>& addr;
+
+public:
+    explicit address_checker(const ip_addr_base<ip_size>& addr_) : addr{ addr_ } {}
+
+    template <size_t range_size> bool operator()(const ip_range_base<range_size>& range_) const
+    {
+        if constexpr (ip_size == range_size)
+        {
+            return range_.contains(addr);
+        }
+        else
+        {
+            return false;
+        }
+    }
+};
+
+template <size_t ip_size>
+bool contains_t(const std::span<const ip_range_gen> ranges_, const ip_addr_base<ip_size>& address_)
+{
+    const address_checker checker{ address_ };
+
+    return std::ranges::find_if(ranges_, [&checker](const ip_range_gen& range_)
+                                { return std::visit(checker, range_); }) !=
+           ranges_.end();
+}
+
+
+bool contains(const std::span<const ip_range_gen> ranges_, const ipv4_addr& address_)
+{
+    return contains_t(ranges_, address_);
+}
+
+bool contains(const std::span<const ip_range_gen> ranges_, const ipv6_addr& address_)
+{
+    return contains_t(ranges_, address_);
+}
+
+class ip_contain_visitor
+{
+    const std::span<const ip_range_gen>& ranges;
+
+public:
+    explicit ip_contain_visitor(const std::span<const ip_range_gen>& ranges_) : ranges{ ranges_ } {}
+
+    bool operator()(const ipv4_addr& address_) const { return contains(ranges, address_); }
+    bool operator()(const ipv6_addr& address_) const { return contains(ranges, address_); }
+};
+
+bool contains(const std::span<const ip_range_gen> ranges_, const ip_addr_gen& address_)
+{
+    return std::visit(ip_contain_visitor{ranges_}, address_);
+}
+
+// ipv gen
+bool ip_range_less::operator()(const ip_addr_gen& l_, const ip_addr_gen& r_) const
+{
+    return std::visit(*this, l_, r_);
+}
+
+bool ip_range_less::operator()(const ip_range_gen& l_, const ip_addr_gen& r_) const
+{
+    return std::visit(*this, l_, r_);
+}
+
+bool ip_range_less::operator()(const ip_addr_gen& l_, const ip_range_gen& r_) const
+{
+    return std::visit(*this, l_, r_);
+}
+
+bool ip_range_less::operator()(const ip_range_gen& l_, const ip_range_gen& r_) const
+{
+    return std::visit(*this, l_, r_);
 }
 } // namespace nstl::net

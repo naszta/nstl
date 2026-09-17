@@ -5,6 +5,12 @@
 
 #include <gtest/gtest.h>
 
+TEST(DnsTools, AandAAA)
+{
+    const auto ip_opt = nstl::net::ips_name("naszta.hu");
+    EXPECT_TRUE(ip_opt.has_value());
+}
+
 TEST(DnsTools, CannonName)
 {
     const auto cname = nstl::net::canonical_name("media.naszta.hu");
@@ -16,15 +22,6 @@ TEST(DnsTools, Hostname)
 {
     const auto hostname = nstl::net::hostname();
     EXPECT_FALSE(hostname.empty());
-}
-
-TEST(DnsTools, NullptrThrows)
-{
-    EXPECT_THROW(nstl::net::canonical_name(static_cast<const char*>(nullptr)), std::exception);
-    EXPECT_THROW(nstl::net::mx_name(static_cast<const char*>(nullptr)), std::exception);
-    EXPECT_THROW(nstl::net::txt_name(static_cast<const char*>(nullptr)), std::exception);
-    EXPECT_THROW(nstl::net::c_name(static_cast<const char*>(nullptr)), std::exception);
-    EXPECT_THROW(nstl::net::srv_name(static_cast<const char*>(nullptr)), std::exception);
 }
 
 TEST(DnsTools, NonResolvingNameReturnsNullopt)

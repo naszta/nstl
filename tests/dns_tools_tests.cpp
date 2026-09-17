@@ -5,6 +5,12 @@
 
 #include <gtest/gtest.h>
 
+TEST(DnsTools, AandAAA)
+{
+    const auto ip_opt = nstl::net::ips_name("naszta.hu");
+    EXPECT_TRUE(ip_opt.has_value());
+}
+
 TEST(DnsTools, CannonName)
 {
     const auto cname = nstl::net::canonical_name("media.naszta.hu");

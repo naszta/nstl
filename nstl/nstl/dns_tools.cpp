@@ -77,6 +77,54 @@ std::optional<std::string> canonical_name(const char* name_)
     return retval;
 }
 
+std::optional<std::vector<ip_addr_gen>> ips_name(const char* name_)
+{
+    NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
+    struct addrinfo hints;
+    std::memset(&hints, 0, sizeof(addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_flags = AI_ADDRCONFIG;
+    hints.ai_socktype = SOCK_STREAM;
+    addrinfo* result_raw = nullptr;
+    const auto success = ::getaddrinfo(name_, nullptr, &hints, &result_raw);
+    std::unique_ptr<addrinfo, AddrinfoDeleter> result{ std::exchange(result_raw, nullptr) };
+    if (success != 0)
+    {
+        NSTL2_THROW_EXCEPTION_IF(success != host_not_found, "Issues on resolving " << name_);
+        return std::nullopt;
+    }
+
+    std::optional<std::vector<ip_addr_gen>> retval;
+    for (auto ptr = result.get(); ptr != nullptr; ptr = ptr->ai_next)
+    {
+        if (ptr->ai_family == AF_INET)
+        {
+            const auto address = reinterpret_cast<sockaddr_in*>(ptr->ai_addr)->sin_addr;
+            ipv4_addr target;
+            std::memcpy(target.data(), &address, target.size());
+            if (!retval.has_value())
+            {
+                retval.emplace();
+            }
+            retval->emplace_back(std::move(target));
+        }
+        else if (ptr->ai_family == AF_INET6)
+        {
+            const auto address = reinterpret_cast<sockaddr_in6*>(ptr->ai_addr)->sin6_addr;
+            ipv6_addr target;
+            std::memcpy(target.data(), &address, target.size());
+            if (!retval.has_value())
+            {
+                retval.emplace();
+            }
+            retval->emplace_back(std::move(target));
+        }
+    }
+
+    return retval;
+}
+
+std::optional<std::vector<ip_addr_gen>> ips_name(const std::string& name_) { return ips_name(name_.c_str()); }
 std::optional<std::string> canonical_name(const std::string& name_) { return canonical_name(name_.c_str()); }
 std::optional<std::vector<mx_srv>> mx_name(const std::string& name_) { return mx_name(name_.c_str()); }
 std::optional<std::vector<std::string>> txt_name(const std::string& name_) { return txt_name(name_.c_str()); }

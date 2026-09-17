@@ -101,6 +101,13 @@ std::string to_string(const ipv6_addr& ip_);
 std::string to_string(std::span<const std::uint8_t> ip_);
 std::string to_string(const std::variant<ipv4_addr, ipv6_addr>& addr_);
 std::optional<ipv4_addr> is_ipv4(std::span<const std::uint8_t> addr_);
+
+using ip_range_gen = std::variant<ipv4_range, ipv6_range>;
+using ip_addr_gen = std::variant<ipv4_addr, ipv6_addr>;
+
+bool contains(std::span<const ip_range_gen> ranges_, const ipv4_addr& address_);
+bool contains(std::span<const ip_range_gen> ranges_, const ipv6_addr& address_);
+bool contains(std::span<const ip_range_gen> ranges_, const ip_addr_gen& address_);
 } // namespace nstl::net
 
 #endif

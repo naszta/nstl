@@ -23,6 +23,9 @@ struct mx_srv
     std::uint16_t priority{ 0 };
 };
 
+std::optional<std::vector<ip_addr_gen>> ips_name(const char* name_);
+std::optional<std::vector<ip_addr_gen>> ips_name(const std::string& name_);
+
 std::optional<std::vector<mx_srv>> mx_name(const char* name_);
 std::optional<std::vector<mx_srv>> mx_name(const std::string& name_);
 std::optional<std::vector<std::string>> txt_name(const char* name_);

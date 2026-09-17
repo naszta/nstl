@@ -39,26 +39,25 @@ DnsRecordPtr get_results_ex(const wchar_t* name_, WORD type_)
     return retval;
 }
 
-DnsRecordPtr get_results_ex(const char* name_, WORD type_)
+DnsRecordPtr get_results_ex(const std::string_view name_, WORD type_)
 {
-    const auto dns_name = name_ ? std::string_view{ name_ } : std::string_view{};
-    NSTL2_THROW_EXCEPTION_IF(dns_name.empty(), "empty / nullptr cannot be resolved");
-    const auto size = ::MultiByteToWideChar(CP_UTF8, 0, dns_name.data(), static_cast<int>(dns_name.size()), NULL, 0);
-    NSTL2_THROW_EXCEPTION_IF(size <= 0, dns_name << " cannot be converted to wchar_t");
+    NSTL2_THROW_EXCEPTION_IF(name_.empty(), "empty / nullptr cannot be resolved");
+    const auto size = ::MultiByteToWideChar(CP_UTF8, 0, name_.data(), static_cast<int>(name_.size()), NULL, 0);
+    NSTL2_THROW_EXCEPTION_IF(size <= 0, name_ << " cannot be converted to wchar_t");
     std::vector<wchar_t> buffer;
     buffer.resize(size + 1);
     const auto written =
-        ::MultiByteToWideChar(CP_UTF8, 0, dns_name.data(), static_cast<int>(dns_name.size()), buffer.data(), size);
-    NSTL2_THROW_EXCEPTION_IF(written <= 0, dns_name << " cannot be converted to wchar_t");
+        ::MultiByteToWideChar(CP_UTF8, 0, name_.data(), static_cast<int>(name_.size()), buffer.data(), size);
+    NSTL2_THROW_EXCEPTION_IF(written <= 0, name_ << " cannot be converted to wchar_t");
     buffer[written] = L'\0';
     return get_results_ex(buffer.data(), type_);
 }
 
-DnsRecordPtr get_results(const char* name_, WORD type_)
+DnsRecordPtr get_results(const std::string_view name_, WORD type_)
 {
-    NSTL2_THROW_EXCEPTION_IF(!name_, "name_ is nullptr");
+    const auto name = detail::stack_name(name_);
     PDNS_RECORDA result = nullptr;
-    const DNS_STATUS status = ::DnsQuery_UTF8(name_, type_, DNS_QUERY_STANDARD, nullptr, &result, nullptr);
+    const DNS_STATUS status = ::DnsQuery_UTF8(name.data(), type_, DNS_QUERY_STANDARD, nullptr, &result, nullptr);
     DnsRecordPtr retval{ std::exchange(result, nullptr) };
     if (status)
     {
@@ -69,7 +68,7 @@ DnsRecordPtr get_results(const char* name_, WORD type_)
 
 } // namespace
 
-std::optional<std::vector<mx_srv>> mx_name(const char* name_)
+std::optional<std::vector<mx_srv>> mx_name(const std::string_view name_)
 {
     const auto results = get_results(name_, DNS_TYPE_MX);
 
@@ -94,7 +93,7 @@ std::optional<std::vector<mx_srv>> mx_name(const char* name_)
     return retval;
 }
 
-std::optional<std::vector<std::string>> txt_name(const char* name_)
+std::optional<std::vector<std::string>> txt_name(const std::string_view name_)
 {
     const auto results = get_results(name_, DNS_TYPE_TEXT);
 
@@ -124,7 +123,7 @@ std::optional<std::vector<std::string>> txt_name(const char* name_)
     return retval;
 }
 
-std::optional<std::vector<std::string>> c_name(const char* name_)
+std::optional<std::vector<std::string>> c_name(const std::string_view name_)
 {
     const auto results = get_results(name_, DNS_TYPE_CNAME);
 
@@ -148,7 +147,7 @@ std::optional<std::vector<std::string>> c_name(const char* name_)
     return retval;
 }
 
-std::optional<std::vector<gen_srv>> srv_name(const char* name_)
+std::optional<std::vector<gen_srv>> srv_name(const std::string_view name_)
 {
     const auto results = get_results(name_, DNS_TYPE_SRV);
 
@@ -294,7 +293,7 @@ WORD get_type_id(const SvcbType type_)
 }
 }
 
-std::optional<std::vector<gen_svcb>> svcb_name(const char* name_, const SvcbType type_)
+std::optional<std::vector<gen_svcb>> svcb_name(const std::string_view name_, const SvcbType type_)
 {
     const auto dns_type = get_type_id(type_);
     const auto results = get_results_ex(name_, dns_type);

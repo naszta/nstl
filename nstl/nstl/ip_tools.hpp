@@ -16,10 +16,14 @@
 namespace nstl::net
 {
 constexpr const size_t bytes_in_bits = 8;
+constexpr const size_t ipv4_size = 4;
+constexpr const size_t ipv6_size = 16;
+
+template <size_t ip_size>
+using ip_addr_base = std::array<std::uint8_t, ip_size>;
 
 template <size_t data_size>
-void and_arrays(const std::array<std::uint8_t, data_size>& a_, const std::array<std::uint8_t, data_size>& b_,
-                std::array<std::uint8_t, data_size>& dst_)
+void and_arrays(const ip_addr_base<data_size>& a_, const ip_addr_base<data_size>& b_, ip_addr_base<data_size>& dst_)
 {
     for (size_t i = 0; i < data_size; ++i)
     {
@@ -27,10 +31,10 @@ void and_arrays(const std::array<std::uint8_t, data_size>& a_, const std::array<
     }
 }
 
-template <size_t data_size> auto create_mask(std::uint8_t mask_) -> std::array<std::uint8_t, data_size>
+template <size_t data_size> auto create_mask(std::uint8_t mask_) -> ip_addr_base<data_size>
 {
     NSTL2_THROW_EXCEPTION_IF(data_size * bytes_in_bits < mask_, mask_ << " mask is invalid");
-    std::array<std::uint8_t, data_size> retval;
+    ip_addr_base<data_size> retval;
     std::memset(retval.data(), 0, retval.size());
     for (unsigned i = 0; i < data_size && 0 < mask_; ++i)
     {
@@ -44,7 +48,7 @@ template <size_t data_size> auto create_mask(std::uint8_t mask_) -> std::array<s
 template <std::size_t ip_size> struct ip_range_base
 {
     static constexpr auto ip_max_bits = ip_size * bytes_in_bits;
-    using ip_add_type = std::array<std::uint8_t, ip_size>;
+    using ip_add_type = ip_addr_base<ip_size>;
 
     ip_range_base()
     {
@@ -69,13 +73,10 @@ template <std::size_t ip_size> struct ip_range_base
     }
 };
 
-constexpr const size_t ipv4_size = 4;
-constexpr const size_t ipv6_size = 16;
-
-using ipv4_addr = std::array<std::uint8_t, ipv4_size>;
+using ipv4_addr = ip_addr_base<ipv4_size>;
 std::ostream& operator<<(std::ostream& os_, const ipv4_addr& ip_);
 
-using ipv6_addr = std::array<std::uint8_t, ipv6_size>;
+using ipv6_addr = ip_addr_base<ipv6_size>;
 std::ostream& operator<<(std::ostream& os_, const ipv6_addr& ip_);
 
 ipv4_addr create_ipv4_mask(const std::uint8_t mask_);
@@ -101,6 +102,91 @@ std::string to_string(const ipv6_addr& ip_);
 std::string to_string(std::span<const std::uint8_t> ip_);
 std::string to_string(const std::variant<ipv4_addr, ipv6_addr>& addr_);
 std::optional<ipv4_addr> is_ipv4(std::span<const std::uint8_t> addr_);
+
+using ip_range_gen = std::variant<ipv4_range, ipv6_range>;
+using ip_addr_gen = std::variant<ipv4_addr, ipv6_addr>;
+
+bool contains(std::span<const ip_range_gen> ranges_, const ipv4_addr& address_);
+bool contains(std::span<const ip_range_gen> ranges_, const ipv6_addr& address_);
+bool contains(std::span<const ip_range_gen> ranges_, const ip_addr_gen& address_);
+
+struct ip_range_less
+{
+    using is_transparent = void;
+
+    template <size_t l_size, size_t r_size>
+    bool operator()(const ip_addr_base<l_size>& l_, const ip_addr_base<r_size>& r_) const
+    {
+        if constexpr (l_size < r_size)
+        {
+            return true;
+        }
+        else if constexpr (r_size < l_size)
+        {
+            return false;
+        }
+        else
+        {
+            return l_ < r_;
+        }
+    }
+    template <size_t l_size, size_t r_size>
+    bool operator()(const ip_range_base<l_size>& l_, const ip_addr_base<r_size>& r_) const
+    {
+        if constexpr (l_size < r_size)
+        {
+            return true;
+        }
+        else if constexpr (r_size < l_size)
+        {
+            return false;
+        }
+        else
+        {
+            return l_.ip < r_;
+        }
+    }
+
+    template <size_t l_size, size_t r_size>
+    bool operator()(const ip_addr_base<l_size>& l_, const ip_range_base<r_size>& r_) const
+    {
+        if constexpr (l_size < r_size)
+        {
+            return true;
+        }
+        else if constexpr (r_size < l_size)
+        {
+            return false;
+        }
+        else
+        {
+            return l_ < r_.ip;
+        }
+    }
+
+    template <size_t l_size, size_t r_size>
+    bool operator()(const ip_range_base<l_size>& l_, const ip_range_base<r_size>& r_) const
+    {
+        if constexpr (l_size < r_size)
+        {
+            return true;
+        }
+        else if constexpr (r_size < l_size)
+        {
+            return false;
+        }
+        else
+        {
+            return l_.ip < r_.ip;
+        }
+    }
+
+    // ipv gen
+    bool operator()(const ip_addr_gen& l_, const ip_addr_gen& r_) const;
+    bool operator()(const ip_range_gen& l_, const ip_addr_gen& r_) const;
+    bool operator()(const ip_addr_gen& l_, const ip_range_gen& r_) const;
+    bool operator()(const ip_range_gen& l_, const ip_range_gen& r_) const;
+};
 } // namespace nstl::net
 
 #endif

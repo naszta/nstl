@@ -21,16 +21,25 @@
 
 namespace nstl::net
 {
+std::array<char, detail::max_host_size> detail::stack_name(const std::string_view name_)
+{
+    NSTL2_THROW_EXCEPTION_IF(name_.empty(), "name_ cannot be nullptr");
+    NSTL2_THROW_EXCEPTION_IF(detail::max_host_size <= name_.size(), "Target stack is small (it should be fine: FQDN is 255 bytes maximum)");
+    std::array<char, max_host_size> stack_name;
+    std::strncpy(stack_name.data(), name_.data(), name_.size());
+    stack_name[name_.size()] = '\0';
+    return stack_name;
+}
+
 std::string hostname()
 {
     // https://man7.org/linux/man-pages/man2/gethostname.2.html - SUSv2 guarantees that "Host names are limited to 255
     // bytes". https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-gethostname - So if a buffer of
     // 256 bytes is passed in the name parameter and the namelen parameter is set to 256, the buffer size will always be
     // adequate.
-    constexpr int max_host_size = 256;
-    std::array<char, max_host_size> buffer;
+    std::array<char, detail::max_host_size> buffer;
     std::memset(buffer.data(), 0, buffer.size());
-    NSTL2_THROW_EXCEPTION_IF(::gethostname(buffer.data(), max_host_size) != 0, "hostname cannot be resolved");
+    NSTL2_THROW_EXCEPTION_IF(::gethostname(buffer.data(), detail::max_host_size) != 0, "hostname cannot be resolved");
     return std::string{ buffer.data() };
 }
 
@@ -48,15 +57,15 @@ struct AddrinfoDeleter
 };
 } // namespace
 
-std::optional<std::string> canonical_name(const char* name_)
+std::optional<std::string> canonical_name(const std::string_view name_)
 {
-    NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
+    const auto name = detail::stack_name(name_);
     struct addrinfo hints;
     std::memset(&hints, 0, sizeof(addrinfo));
     hints.ai_family = AF_UNSPEC;
     hints.ai_flags = AI_CANONNAME;
     addrinfo* result_raw = nullptr;
-    const auto success = ::getaddrinfo(name_, nullptr, &hints, &result_raw);
+    const auto success = ::getaddrinfo(name.data(), nullptr, &hints, &result_raw);
     std::unique_ptr<addrinfo, AddrinfoDeleter> result{ std::exchange(result_raw, nullptr) };
     if (success != 0)
     {
@@ -77,14 +86,64 @@ std::optional<std::string> canonical_name(const char* name_)
     return retval;
 }
 
-std::optional<std::string> canonical_name(const std::string& name_) { return canonical_name(name_.c_str()); }
-std::optional<std::vector<mx_srv>> mx_name(const std::string& name_) { return mx_name(name_.c_str()); }
-std::optional<std::vector<std::string>> txt_name(const std::string& name_) { return txt_name(name_.c_str()); }
-std::optional<std::vector<std::string>> c_name(const std::string& name_) { return c_name(name_.c_str()); }
-std::optional<std::vector<gen_srv>> srv_name(const std::string& name_) { return srv_name(name_.c_str()); }
-std::optional<std::vector<gen_svcb>> svcb_name(const std::string& name_, const SvcbType type_)
+std::optional<std::vector<ip_addr_gen>> ips_name(const std::string_view name_, const IpClass class_)
 {
-    return svcb_name(name_.c_str(), type_);
+    const auto name = detail::stack_name(name_);
+    struct addrinfo hints;
+    std::memset(&hints, 0, sizeof(addrinfo));
+    switch (class_)
+    {
+    case IpClass::Ipv4:
+        hints.ai_family = AF_INET;
+        break;
+    case IpClass::Ipv6:
+        hints.ai_family = AF_INET6;
+        break;
+    case IpClass::IpvAll:
+        hints.ai_family = AF_UNSPEC;
+        break;
+    default:
+        NSTL2_THROW_EXCEPTION("Unknown IpClass type");
+    }
+    hints.ai_flags = AI_ADDRCONFIG;
+    hints.ai_socktype = SOCK_STREAM;
+    addrinfo* result_raw = nullptr;
+    const auto success = ::getaddrinfo(name.data(), nullptr, &hints, &result_raw);
+    std::unique_ptr<addrinfo, AddrinfoDeleter> result{ std::exchange(result_raw, nullptr) };
+    if (success != 0)
+    {
+        NSTL2_THROW_EXCEPTION_IF(success != host_not_found, "Issues on resolving " << name_);
+        return std::nullopt;
+    }
+
+    std::optional<std::vector<ip_addr_gen>> retval;
+    for (auto ptr = result.get(); ptr != nullptr; ptr = ptr->ai_next)
+    {
+        if (ptr->ai_family == AF_INET)
+        {
+            const auto address = reinterpret_cast<sockaddr_in*>(ptr->ai_addr)->sin_addr;
+            ipv4_addr target;
+            std::memcpy(target.data(), &address, target.size());
+            if (!retval.has_value())
+            {
+                retval.emplace();
+            }
+            retval->emplace_back(std::move(target));
+        }
+        else if (ptr->ai_family == AF_INET6)
+        {
+            const auto address = reinterpret_cast<sockaddr_in6*>(ptr->ai_addr)->sin6_addr;
+            ipv6_addr target;
+            std::memcpy(target.data(), &address, target.size());
+            if (!retval.has_value())
+            {
+                retval.emplace();
+            }
+            retval->emplace_back(std::move(target));
+        }
+    }
+
+    return retval;
 }
 
 namespace

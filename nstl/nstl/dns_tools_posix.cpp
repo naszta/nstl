@@ -148,7 +148,6 @@ class DnsClient
     bool _process_item(const char* name_, const int ns_type_,
                        const std::function<void(ns_msg& message, int count)>& func_)
     {
-        NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
         int length = -1;
         while (length < 0)
         {
@@ -458,16 +457,33 @@ public:
 
 } // namespace
 
-std::optional<std::vector<mx_srv>> mx_name(const char* name_) { return DnsClient::instance().mx_name(name_); }
-
-std::optional<std::vector<std::string>> txt_name(const char* name_) { return DnsClient::instance().txt_name(name_); }
-
-std::optional<std::vector<std::string>> c_name(const char* name_) { return DnsClient::instance().c_name(name_); }
-
-std::optional<std::vector<gen_srv>> srv_name(const char* name_) { return DnsClient::instance().srv_name(name_); }
-
-std::optional<std::vector<gen_svcb>> svcb_name(const char* name_, const SvcbType type_)
+std::optional<std::vector<mx_srv>> mx_name(const std::string_view name_)
 {
-    return DnsClient::instance().svcb_name(name_, type_);
+    const auto name = detail::stack_name(name_);
+    return DnsClient::instance().mx_name(name.data());
+}
+
+std::optional<std::vector<std::string>> txt_name(const std::string_view name_)
+{
+    const auto name = detail::stack_name(name_);
+    return DnsClient::instance().txt_name(name.data());
+}
+
+std::optional<std::vector<std::string>> c_name(const std::string_view name_)
+{
+    const auto name = detail::stack_name(name_);
+    return DnsClient::instance().c_name(name.data());
+}
+
+std::optional<std::vector<gen_srv>> srv_name(const std::string_view name_)
+{
+    const auto name = detail::stack_name(name_);
+    return DnsClient::instance().srv_name(name.data());
+}
+
+std::optional<std::vector<gen_svcb>> svcb_name(const std::string_view name_, const SvcbType type_)
+{
+    const auto name = detail::stack_name(name_);
+    return DnsClient::instance().svcb_name(name.data(), type_);
 }
 } // namespace nstl::net

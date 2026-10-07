@@ -11,6 +11,11 @@ namespace nstl
 
 namespace
 {
+template <size_t hash_size> std::pair<BYTE*, DWORD> get_target(std::array<std::uint8_t, hash_size>& data_)
+{
+    return std::make_pair(data_.data(), static_cast<DWORD>(hash_size));
+}
+
 ALG_ID translateAlgoId(const HashType type_)
 {
     switch (type_)
@@ -96,26 +101,14 @@ public:
         switch (_type)
         {
         case HashType::SHA1:
-        {
-            auto& ref = buffer.emplace<HashSha1Type>();
-            data = ref.data();
-            hashLen = static_cast<DWORD>(ref.size());
+            std::tie(data, hashLen) = get_target(buffer.emplace<HashSha1Type>());
             break;
-        }
         case HashType::SHA256:
-        {
-            auto& ref = buffer.emplace<HashSha256Type>();
-            data = ref.data();
-            hashLen = static_cast<DWORD>(ref.size());
+            std::tie(data, hashLen) = get_target(buffer.emplace<HashSha256Type>());
             break;
-        }
         case HashType::SHA512:
-        {
-            auto& ref = buffer.emplace<HashSha512Type>();
-            data = ref.data();
-            hashLen = static_cast<DWORD>(ref.size());
+            std::tie(data, hashLen) = get_target(buffer.emplace<HashSha512Type>());
             break;
-        }
         default:
             NSTL2_THROW_EXCEPTION("Unknown hash type");
         }

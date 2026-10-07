@@ -9,6 +9,12 @@ namespace nstl
 {
 namespace
 {
+template <size_t hash_size>
+std::pair<std::uint8_t*, unsigned int> get_target(std::array<std::uint8_t, hash_size>& data_)
+{
+    return std::make_pair(data_.data(), static_cast<unsigned int>(hash_size));
+}
+
 class HasherOpenSsl final : public Hasher
 {
     const HashType _type;
@@ -73,26 +79,14 @@ public:
         switch (_type)
         {
         case HashType::SHA1:
-        {
-            auto& ref = buffer.emplace<HashSha1Type>();
-            data = ref.data();
-            md_len = static_cast<unsigned int>(ref.size());
+            std::tie(data, md_len) = get_target(buffer.emplace<HashSha1Type>());
             break;
-        }
         case HashType::SHA256:
-        {
-            auto& ref = buffer.emplace<HashSha256Type>();
-            data = ref.data();
-            md_len = static_cast<unsigned int>(ref.size());
+            std::tie(data, md_len) = get_target(buffer.emplace<HashSha256Type>());
             break;
-        }
         case HashType::SHA512:
-        {
-            auto& ref = buffer.emplace<HashSha512Type>();
-            data = ref.data();
-            md_len = static_cast<unsigned int>(ref.size());
+            std::tie(data, md_len) = get_target(buffer.emplace<HashSha512Type>());
             break;
-        }
         default:
             NSTL2_THROW_EXCEPTION("Unknown hash type");
         }

@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <type_traits>
@@ -19,6 +20,9 @@ using HashSha1Type = std::array<std::uint8_t, static_cast<HashValType>(HashType:
 using HashSha256Type = std::array<std::uint8_t, static_cast<HashValType>(HashType::SHA256)>;
 using HashSha512Type = std::array<std::uint8_t, static_cast<HashValType>(HashType::SHA512)>;
 using HashValue = std::variant<HashSha1Type, HashSha256Type, HashSha512Type>;
+
+HashType get_hash_type(const HashValue& hash_);
+std::optional<HashType> get_hash_type(std::span<const std::uint8_t> hash_);
 
 constexpr size_t megabyte = 1048576;
 
@@ -65,6 +69,9 @@ HashValue hash_file(const std::filesystem::path& path_, const std::span<char>& b
 #endif
 std::string hash_to_hex(const HashValue& hash_);
 std::wstring whash_to_hex(const HashValue& hash_);
+
+std::string hash_to_base64(const HashValue& hash_);
+std::wstring whash_to_base64(const HashValue& hash_);
 } // namespace nstl
 
 #endif

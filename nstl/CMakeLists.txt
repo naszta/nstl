@@ -1,6 +1,6 @@
 PROJECT(nstllib LANGUAGES CXX)
 
-find_package(Boost COMPONENTS headers serialization program_options)
+find_package(Boost COMPONENTS headers serialization program_options tokenizer)
 find_package(CURL COMPONENTS HTTPS SSL)
 
 if (NSTL_USING_OPENSSL)
@@ -13,6 +13,7 @@ SET(nstllibHdrs
   nstl/backtrace.hpp
   nstl/base64.hpp
   nstl/c_timezone.hpp
+  nstl/csv_dict_reader.hpp
   nstl/compiler.hpp
   nstl/datahash_fwd.hpp
   nstl/datahash.hpp
@@ -45,6 +46,7 @@ SET(nstllibHdrs
 SET(nstllibSrcs
   nstl/args_editor.cpp
   nstl/c_timezone.cpp
+  nstl/csv_dict_reader.cpp
   nstl/math.cpp
   nstl/datahash.cpp
   nstl/dead_lock_detect.cpp

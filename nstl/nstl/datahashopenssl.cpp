@@ -19,9 +19,6 @@ class HasherOpenSsl final : public Hasher
         const EVP_MD* md = nullptr;
         switch (_type)
         {
-        case HashType::MD5:
-            md = EVP_md5();
-            break;
         case HashType::SHA1:
             md = EVP_sha1();
             break;
@@ -70,10 +67,37 @@ public:
     HashValue finish() override
     {
         HashValue buffer;
-        buffer.resize(static_cast<std::underlying_type_t<HashType>>(_type));
-        unsigned int md_len = buffer.size();
-        NSTL2_THROW_EXCEPTION_IF(!::EVP_DigestFinal_ex(_mdctx, buffer.data(), &md_len), "EVP_DigestFinal_ex failed");
-        buffer.resize(md_len);
+        std::uint8_t* data = nullptr;
+        unsigned int md_len = 0;
+
+        switch (_type)
+        {
+        case HashType::SHA1:
+        {
+            auto& ref = buffer.emplace<HashSha1Type>();
+            data = ref.data();
+            md_len = static_cast<unsigned int>(ref.size());
+            break;
+        }
+        case HashType::SHA256:
+        {
+            auto& ref = buffer.emplace<HashSha256Type>();
+            data = ref.data();
+            md_len = static_cast<unsigned int>(ref.size());
+            break;
+        }
+        case HashType::SHA512:
+        {
+            auto& ref = buffer.emplace<HashSha512Type>();
+            data = ref.data();
+            md_len = static_cast<unsigned int>(ref.size());
+            break;
+        }
+        default:
+            NSTL2_THROW_EXCEPTION("Unknown hash type");
+        }
+
+        NSTL2_THROW_EXCEPTION_IF(!::EVP_DigestFinal_ex(_mdctx, data, &md_len), "EVP_DigestFinal_ex failed");
         return buffer;
     }
 };

@@ -23,6 +23,8 @@ SET(nstlroot_VERSION "${nstlroot_MAJOR_VERSION}.${nstlroot_MINOR_VERSION}.${nstl
 
 if (WIN32)
   set(NSTL_USING_OPENSSL OFF CACHE BOOL "NSTL using OpenSSL")
+elseif(APPLE)
+  set(NSTL_USING_OPENSSL OFF CACHE BOOL "NSTL using OpenSSL")
 else()
   set(NSTL_USING_OPENSSL ON CACHE BOOL "NSTL using OpenSSL")
 endif()

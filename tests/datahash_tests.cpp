@@ -17,15 +17,6 @@ TEST(HashTest, SimpleDefault)
     EXPECT_EQ(readable, "E2CFEB333F551852EFE9783F514B9420D4EA77DAFC9B34BE677075818B5366BE");
 }
 
-TEST(HashTest, SimpleMD5)
-{
-    const auto hasher = nstl::Hasher::factory(nstl::HashType::MD5);
-    hasher->add("Example payload");
-    const auto value = hasher->finish();
-    const auto readable = nstl::hash_to_hex(value);
-    EXPECT_EQ(readable, "4A11CA54F9E6CD7A639058DACDA62724");
-}
-
 TEST(HashTest, SimpleSHA1)
 {
     const auto hasher = nstl::Hasher::factory(nstl::HashType::SHA1);
@@ -123,7 +114,6 @@ TEST(HashTest, FileTestZeroBufferSizeThrows)
 
 TEST(HashTest, ParseHashType)
 {
-    EXPECT_EQ(nstl::parseHashType("MD5"), nstl::HashType::MD5);
     EXPECT_EQ(nstl::parseHashType("SHA"), nstl::HashType::SHA1);
     EXPECT_EQ(nstl::parseHashType("SHA1"), nstl::HashType::SHA1);
     EXPECT_EQ(nstl::parseHashType("SHA256"), nstl::HashType::SHA256);

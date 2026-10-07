@@ -3,16 +3,22 @@
 
 #include <nstl/datahash_fwd.hpp>
 
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <span>
 #include <string>
-#include <vector>
+#include <type_traits>
+#include <variant>
 
 namespace nstl
 {
-using HashValue = std::vector<unsigned char>;
+using HashValType = std::underlying_type_t<HashType>;
+using HashSha1Type = std::array<std::uint8_t, static_cast<HashValType>(HashType::SHA1)>;
+using HashSha256Type = std::array<std::uint8_t, static_cast<HashValType>(HashType::SHA256)>;
+using HashSha512Type = std::array<std::uint8_t, static_cast<HashValType>(HashType::SHA512)>;
+using HashValue = std::variant<HashSha1Type, HashSha256Type, HashSha512Type>;
 
 constexpr size_t megabyte = 1048576;
 

@@ -15,8 +15,6 @@ ALG_ID translateAlgoId(const HashType type_)
 {
     switch (type_)
     {
-    case HashType::MD5:
-        return CALG_MD5;
     case HashType::SHA1:
         return CALG_SHA;
     case HashType::SHA256:
@@ -91,18 +89,38 @@ public:
 
     HashValue finish() override
     {
-        DWORD hash_size = 0;
-        DWORD hashLen = sizeof(DWORD);
-
-        NSTL2_THROW_EXCEPTION_IF(
-            !::CryptGetHashParam(_hHash, HP_HASHSIZE, reinterpret_cast<BYTE*>(&hash_size), &hashLen, 0),
-            "CryptGetHashParam HP_HASHSIZE failed: " << ::GetLastError());
-
+        DWORD hashLen = 0;
+        BYTE* data = 0;
         HashValue buffer;
-        buffer.resize(hash_size);
-        hashLen = static_cast<DWORD>(buffer.size());
 
-        NSTL2_THROW_EXCEPTION_IF(!::CryptGetHashParam(_hHash, HP_HASHVAL, buffer.data(), &hashLen, 0),
+        switch (_type)
+        {
+        case HashType::SHA1:
+        {
+            auto& ref = buffer.emplace<HashSha1Type>();
+            data = ref.data();
+            hashLen = static_cast<DWORD>(ref.size());
+            break;
+        }
+        case HashType::SHA256:
+        {
+            auto& ref = buffer.emplace<HashSha256Type>();
+            data = ref.data();
+            hashLen = static_cast<DWORD>(ref.size());
+            break;
+        }
+        case HashType::SHA512:
+        {
+            auto& ref = buffer.emplace<HashSha512Type>();
+            data = ref.data();
+            hashLen = static_cast<DWORD>(ref.size());
+            break;
+        }
+        default:
+            NSTL2_THROW_EXCEPTION("Unknown hash type");
+        }
+
+        NSTL2_THROW_EXCEPTION_IF(!::CryptGetHashParam(_hHash, HP_HASHVAL, data, &hashLen, 0),
                                  "CryptGetHashParam HP_HASHVAL failed: " << ::GetLastError());
         return buffer;
     }

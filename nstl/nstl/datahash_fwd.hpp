@@ -9,7 +9,6 @@ namespace nstl
 {
 enum class HashType : std::uint32_t
 {
-    MD5 = 16,
     SHA1 = 20,
     SHA256 = 32,
     SHA512 = 64,
@@ -17,6 +16,6 @@ enum class HashType : std::uint32_t
 };
 
 std::optional<HashType> parseHashType(std::string_view name_);
-}
+} // namespace nstl
 
 #endif

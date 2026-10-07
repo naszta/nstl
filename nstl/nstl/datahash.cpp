@@ -71,30 +71,41 @@ HashValue hash_file(const std::filesystem::path& path_, const std::span<char>& b
 namespace
 {
 template <class CharT, class TraitsT = std::char_traits<CharT>>
-std::basic_string<CharT, TraitsT> hash_to_hex_t(const HashValue& hash_,
-                                                const std::basic_string_view<CharT, TraitsT> digits_)
+struct hash_to_hex_visitor
 {
-    std::basic_string<CharT, TraitsT> retval;
-    retval.reserve(hash_.size() * 2);
-    for (auto b : hash_)
+    std::basic_string_view<CharT, TraitsT> _digits;
+
+    constexpr explicit hash_to_hex_visitor(const std::basic_string_view<CharT, TraitsT> digits_) : _digits{ digits_ }
+    {}
+
+    template <size_t hash_size>
+    std::basic_string<CharT, TraitsT> operator()(const std::array<std::uint8_t, hash_size>& hash_) const
     {
-        retval.push_back(digits_[b >> 4]);
-        retval.push_back(digits_[b & 0x0F]);
+        std::basic_string<CharT, TraitsT> retval;
+        retval.reserve(hash_.size() * 2);
+        for (auto b : hash_)
+        {
+            retval.push_back(_digits[b >> 4]);
+            retval.push_back(_digits[b & 0x0F]);
+        }
+        return retval;
     }
-    return retval;
-}
+};
+
 } // namespace
 
 std::string hash_to_hex(const HashValue& hash_)
 {
     constexpr const std::string_view digits{ "0123456789ABCDEF" };
-    return hash_to_hex_t(hash_, digits);
+    constexpr const hash_to_hex_visitor visitor{ digits };
+    return std::visit(visitor, hash_);
 }
 
 std::wstring whash_to_hex(const HashValue& hash_)
 {
     constexpr const std::wstring_view digits{ L"0123456789ABCDEF" };
-    return hash_to_hex_t(hash_, digits);
+    constexpr const hash_to_hex_visitor visitor{ digits };
+    return std::visit(visitor, hash_);
 }
 
 std::optional<HashType> parseHashType(const std::string_view name_)
@@ -102,10 +113,6 @@ std::optional<HashType> parseHashType(const std::string_view name_)
     if (name_.empty())
     {
         return std::nullopt;
-    }
-    else if (name_ == "MD5")
-    {
-        return HashType::MD5;
     }
     else if (name_ == "SHA" || name_ == "SHA1")
     {

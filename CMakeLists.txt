@@ -17,6 +17,11 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 include(cmake/FindNstl.cmake)
 include(FetchContent)
 
+set(NSTL_BOOST_VERSION boost-1.92.0 CACHE STRING "boost version")
+set(NSTL_TBB_VERSION v2023.1.0 CACHE STRING "intel TBB version")
+set(NSTL_GTEST_VERSION v1.18.0 CACHE STRING "GoogleTest version")
+set(NSTL_CURL_VERSION 8.22.0 CACHE STRING "curl version")
+
 set(ENABLE_CURL_MANUAL OFF CACHE BOOL "" FORCE)
 set(BUILD_LIBCURL_DOCS OFF CACHE BOOL "" FORCE)
 set(TBB_TEST OFF CACHE BOOL "" FORCE)
@@ -29,46 +34,51 @@ else(LINUX)
   FetchContent_Declare(
     Boost
     GIT_REPOSITORY https://github.com/boostorg/boost.git
-    GIT_TAG boost-1.91.0-1
+    GIT_TAG ${NSTL_BOOST_VERSION}
     GIT_SHALLOW TRUE
     SYSTEM
     EXCLUDE_FROM_ALL
   )
   FetchContent_MakeAvailable(Boost)
+  message(STATUS "Boost version: ${NSTL_BOOST_VERSION}")
 
   FetchContent_Declare(
     TBB
     GIT_REPOSITORY https://github.com/uxlfoundation/oneTBB.git
-    GIT_TAG v2023.1.0
+    GIT_TAG ${NSTL_TBB_VERSION}
     GIT_SHALLOW TRUE
     SYSTEM
     EXCLUDE_FROM_ALL
   )
   FetchContent_MakeAvailable(TBB)
+  message(STATUS "intel TBB version: ${NSTL_TBB_VERSION}")
 
   FetchContent_Declare(
     GTest
     GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG v1.17.0
+    GIT_TAG ${NSTL_GTEST_VERSION}
     GIT_SHALLOW TRUE
     SYSTEM
     EXCLUDE_FROM_ALL
   )
   FetchContent_MakeAvailable(GTest)
+  message(STATUS "Google Test version: ${NSTL_GTEST_VERSION}")
 
   if(APPLE)
     find_package(CURL COMPONENTS HTTPS SSL)
   else(APPLE)
+    set(_CURL_URL "https://curl.se/download/curl-${NSTL_CURL_VERSION}.tar.gz")
     set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
     set(CURL_USE_LIBPSL OFF CACHE BOOL "" FORCE)
     set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
     set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     set(BUILD_STATIC_CURL ON CACHE BOOL "" FORCE)
     FetchContent_Declare(CURL
-      URL https://curl.se/download/curl-8.21.0.tar.gz
+      URL ${_CURL_URL}
       DOWNLOAD_EXTRACT_TIMESTAMP true
     )
     FetchContent_MakeAvailable(CURL)
+    message(STATUS "curl version: ${NSTL_CURL_VERSION}")
   endif(APPLE)
 endif(LINUX)
 

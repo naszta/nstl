@@ -1,4 +1,5 @@
 #include "datahash.hpp"
+#include "base64.hpp"
 #include "exception.hpp"
 #include "secure_string.hpp"
 #include "scope_exit.hpp"
@@ -22,6 +23,36 @@
 
 namespace nstl
 {
+namespace
+{
+struct get_hash_type_visitor
+{
+    template <size_t hash_size> HashType operator()(const std::array<std::uint8_t, hash_size>&) const
+    {
+        return static_cast<HashType>(hash_size);
+    }
+
+};
+}
+
+
+HashType get_hash_type(const HashValue& hash_) { return std::visit(get_hash_type_visitor{}, hash_); }
+
+std::optional<HashType> get_hash_type(std::span<const std::uint8_t> hash_)
+{
+    switch (hash_.size())
+    {
+    case static_cast<size_t>(HashType::SHA1):
+        return HashType::SHA1;
+    case static_cast<size_t>(HashType::SHA256):
+        return HashType::SHA256;
+    case static_cast<size_t>(HashType::SHA512):
+        return HashType::SHA512;
+    default:
+        return std::nullopt;
+    }
+}
+
 Hasher::Hasher() = default;
 Hasher::~Hasher() = default;
 
@@ -105,6 +136,34 @@ std::wstring whash_to_hex(const HashValue& hash_)
 {
     constexpr const std::wstring_view digits{ L"0123456789ABCDEF" };
     constexpr const hash_to_hex_visitor visitor{ digits };
+    return std::visit(visitor, hash_);
+}
+
+namespace
+{
+template <class CharT>
+struct base64_visitor
+{
+    template <size_t hash_size>
+    std::basic_string<CharT> operator()(const std::array<std::uint8_t, hash_size>& hash_) const
+    {
+        std::basic_string<CharT> retval;
+        retval.reserve((hash_size / 3 + 1) * 4);
+        to_base64(hash_, std::back_inserter(retval));
+        return retval;
+    }
+};
+}
+
+std::string hash_to_base64(const HashValue& hash_)
+{
+    const base64_visitor<char> visitor;
+    return std::visit(visitor, hash_);
+}
+
+std::wstring whash_to_base64(const HashValue& hash_)
+{
+    const base64_visitor<wchar_t> visitor;
     return std::visit(visitor, hash_);
 }
 

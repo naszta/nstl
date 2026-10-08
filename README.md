@@ -118,7 +118,7 @@ Logging:
 ```cpp
 #include <nstl/logging.hpp>
 
-nstl::log::Logger logger{ std::filesystem::path{"app.log"}, nstl::log::LogLevel::Info };
+nstl::log::Logger logger{ std::filesystem::path{"app.log"}, nstl::log::level::Info };
 
 NSTL_INFO("Started with " << argc << " arguments");
 NSTL_ERROR("Failed to open " << path);

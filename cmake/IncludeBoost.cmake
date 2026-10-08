@@ -1,5 +1,5 @@
 set(BOOST_ENABLE_CMAKE ON)
-find_package(Boost COMPONENTS headers serialization program_options tokenizer)
+find_package(Boost COMPONENTS headers serialization program_options tokenizer QUIET)
 if (Boost_FOUND)
   message(STATUS "Boost found locally")
 else()

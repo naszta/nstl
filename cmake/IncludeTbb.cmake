@@ -1,6 +1,6 @@
 set(TBB_TEST OFF CACHE BOOL "" FORCE)
 
-find_package(TBB)
+find_package(TBB QUIET)
 if (TBB_FOUND)
   message(STATUS "TBB found locally")
 else()

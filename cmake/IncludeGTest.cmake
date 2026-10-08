@@ -1,4 +1,4 @@
-find_package(GTest)
+find_package(GTest QUIET)
 if (GTest_FOUND)
   message(STATUS "Googletest found locally")
 else()

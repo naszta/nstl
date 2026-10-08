@@ -2,7 +2,7 @@
 
 #include <nstl/args_editor.hpp>
 #include <nstl/global_init.hpp>
-#include <nstl/logging.hpp>
+#include <nstl/logger.hpp>
 #include <nstl/range_print.hpp>
 #include <nstl/signal_barrier.hpp>
 #include <nstl/env_var_raii.hpp>

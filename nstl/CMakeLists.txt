@@ -26,6 +26,7 @@ SET(nstllibHdrs
   nstl/handle_raii.hpp
   nstl/http_client.hpp
   nstl/ip_tools.hpp
+  nstl/logger.hpp
   nstl/logging.hpp
   nstl/macros.hpp
   nstl/math.hpp
@@ -57,6 +58,7 @@ SET(nstllibSrcs
   nstl/handle_raii.cpp
   nstl/http_client.cpp
   nstl/ip_tools.cpp
+  nstl/logger.cpp
   nstl/logging.cpp
   nstl/signal_barrier_common.cpp
   nstl/temp_dir.cpp
@@ -128,3 +130,4 @@ endif()
 target_link_libraries(nstllib PRIVATE ${nstllib_private_dependencies} PUBLIC ${nstllib_public_dependencies})
 
 set_target_properties(nstllib PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+

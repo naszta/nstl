@@ -28,59 +28,29 @@ namespace nstl::log
 {
 constexpr const char delimiter = '|';
 
-class LogLevel
+namespace level
 {
-public:
-    LogLevel() = delete;
-    ~LogLevel() = delete;
-    LogLevel(const LogLevel&) = delete;
-    LogLevel& operator=(const LogLevel&) = delete;
-
-    enum LogEnum : std::int16_t
-    {
-        Debug,
-        Info,
-        Warning,
-        Error,
-        Terminate,
-    };
-
-    using LogInt = std::underlying_type_t<LogEnum>;
-
-    static LogEnum parseLevel(std::string_view view_);
-    static std::ostream& toStream(std::ostream& os_, LogEnum level_);
-    static std::string_view name(LogEnum level_);
-
-    static LogEnum setLevel(LogEnum level);
-    static LogEnum getLevel();
-    static bool isLevelActive(LogEnum level);
+enum values : std::int16_t
+{
+    Debug,
+    Info,
+    Warning,
+    Error,
+    Terminate,
 };
 
-using LogFunc = std::function<void(LogLevel::LogEnum level, std::string_view line)>;
+using int_type = std::underlying_type_t<values>;
+
+values parseLevel(std::string_view view_);
+std::ostream& toStream(std::ostream& os_, values level_);
+std::string_view name(values level_);
+values setLevel(values level);
+values getLevel();
+bool isLevelActive(values level);
+} // namespace level
+
+using LogFunc = std::function<void(level::values level, std::string_view line)>;
 LogFunc& logger();
-
-class LoggerImpl;
-
-class Logger
-{
-    const bool _cout_logger{ false };
-    std::shared_ptr<LoggerImpl> _log;
-
-    Logger(std::shared_ptr<LoggerImpl> log, bool cout_logger);
-
-public:
-    explicit Logger(LogLevel::LogEnum level = LogLevel::Info);
-    explicit Logger(const std::filesystem::path& tgt_, LogLevel::LogEnum level = LogLevel::Info);
-    explicit Logger(std::ostream& os_, LogLevel::LogEnum level = LogLevel::Info);
-    ~Logger();
-    Logger(const Logger&) = delete;
-    Logger& operator=(const Logger&) = delete;
-
-    bool throttleSize(std::ptrdiff_t size_);
-    size_t size() const;
-    void reset();
-    LogLevel::LogEnum getLevel(LogLevel::LogEnum def = LogLevel::Info) const;
-};
 
 class LogTimeZone
 {
@@ -113,7 +83,7 @@ public:
 class LoggerFormatter
 {
 public:
-    LoggerFormatter(const LogTimeZone& tz_, LogLevel::LogEnum level_, std::string_view file_, int line_);
+    LoggerFormatter(const LogTimeZone& tz_, level::values level_, std::string_view file_, int line_);
     ~LoggerFormatter();
     LoggerFormatter(const LoggerFormatter&) = delete;
     LoggerFormatter& operator=(const LoggerFormatter&) = delete;
@@ -123,29 +93,29 @@ public:
     std::string_view logLine() const;
 
 private:
-    const LogLevel::LogEnum _level{ LogLevel::Debug };
+    const level::values _level{ level::Debug };
     std::ostringstream _oss;
 };
 } // namespace nstl::log
 
-#define NSTL_LOG_LEVEL_IMPL(level, details, help)                                                     \
-    do                                                                                                \
-    {                                                                                                 \
-        if (::nstl::log::LogLevel::isLevelActive(level)) [[help]]                                     \
-        {                                                                                             \
-            ::nstl::log::LoggerFormatter __logger_{ ::nstl::log::LogTimeZone::tz_instance(), level,   \
-                                                    ::nstl::safe_basename_view(__FILE__), __LINE__ }; \
-            __logger_.target() << details;                                                            \
-            __logger_();                                                                              \
-        }                                                                                             \
+#define NSTL_LOG_LEVEL_IMPL(loglevel, details, help)                                                   \
+    do                                                                                                 \
+    {                                                                                                  \
+        if (::nstl::log::level::isLevelActive(loglevel)) [[help]]                                      \
+        {                                                                                              \
+            ::nstl::log::LoggerFormatter __logger_{ ::nstl::log::LogTimeZone::tz_instance(), loglevel, \
+                                                    ::nstl::safe_basename_view(__FILE__), __LINE__ };  \
+            __logger_.target() << details;                                                             \
+            __logger_();                                                                               \
+        }                                                                                              \
     } while (false)
 
-#define NSTL_LOG_LEVEL(level, details) NSTL_LOG_LEVEL_IMPL(level, details, likely)
+#define NSTL_LOG_LEVEL(loglevel, details) NSTL_LOG_LEVEL_IMPL(loglevel, details, likely)
 
-#define NSTL_DEBUG(details) NSTL_LOG_LEVEL_IMPL(::nstl::log::LogLevel::Debug, details, unlikely)
-#define NSTL_INFO(details) NSTL_LOG_LEVEL(::nstl::log::LogLevel::Info, details)
-#define NSTL_WARNING(details) NSTL_LOG_LEVEL(::nstl::log::LogLevel::Warning, details)
-#define NSTL_ERROR(details) NSTL_LOG_LEVEL(::nstl::log::LogLevel::Error, details)
-#define NSTL_TERMINATE(details) NSTL_LOG_LEVEL(::nstl::log::LogLevel::Terminate, details)
+#define NSTL_DEBUG(details) NSTL_LOG_LEVEL_IMPL(::nstl::log::level::values::Debug, details, unlikely)
+#define NSTL_INFO(details) NSTL_LOG_LEVEL(::nstl::log::level::values::Info, details)
+#define NSTL_WARNING(details) NSTL_LOG_LEVEL(::nstl::log::level::values::Warning, details)
+#define NSTL_ERROR(details) NSTL_LOG_LEVEL(::nstl::log::level::values::Error, details)
+#define NSTL_TERMINATE(details) NSTL_LOG_LEVEL(::nstl::log::level::values::Terminate, details)
 
 #endif

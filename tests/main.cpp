@@ -1,5 +1,5 @@
 #include <nstl/global_init.hpp>
-#include <nstl/logging.hpp>
+#include <nstl/logger.hpp>
 
 #include <boost/program_options.hpp>
 #include <gtest/gtest.h>
@@ -17,10 +17,9 @@ int main(int argc_, char** argv_)
     bool pass_tests = false;
 
     po::options_description desc("Allowed options");
-    desc.add_options()
-        ("verbose,v", po::bool_switch(&verbose)->implicit_value(true), "Verbose")
-        ("help,h", po::bool_switch(&show_help)->implicit_value(true), "Show help")
-        ("pass,p", po::bool_switch(&pass_tests)->implicit_value(true), "Pass the tests");
+    desc.add_options()("verbose,v", po::bool_switch(&verbose)->implicit_value(true),
+                       "Verbose")("help,h", po::bool_switch(&show_help)->implicit_value(true), "Show help")(
+        "pass,p", po::bool_switch(&pass_tests)->implicit_value(true), "Pass the tests");
 
     po::variables_map vm;
     try
@@ -41,7 +40,7 @@ int main(int argc_, char** argv_)
     }
 
     const nstl::global_init instance{ true };
-    nstl::log::Logger logger{ verbose ? nstl::log::LogLevel::Debug : nstl::log::LogLevel::Info };
+    nstl::log::Logger logger{ verbose ? nstl::log::level::Debug : nstl::log::level::Info };
     NSTL_INFO("Log working");
     return RUN_ALL_TESTS();
 }

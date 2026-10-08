@@ -1,7 +1,7 @@
 set(ENABLE_CURL_MANUAL OFF CACHE BOOL "" FORCE)
 set(BUILD_LIBCURL_DOCS OFF CACHE BOOL "" FORCE)
 
-find_package(CURL COMPONENTS HTTPS SSL)
+find_package(CURL COMPONENTS HTTPS SSL QUIET)
 if (CURL_FOUND)
   message(STATUS "curl found locally")
 else()

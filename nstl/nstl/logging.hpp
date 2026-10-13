@@ -54,16 +54,23 @@ LogFunc& logger();
 
 class LogTimeZone
 {
+public:
+    using time_point = std::chrono::system_clock::time_point;
+    using clock_fn = std::function<time_point()>;
+
+private:
+    const clock_fn _clock;
     const date::time_zone* _zone{ nullptr };
     std::optional<std::string> _name;
     mutable std::shared_mutex _lock;
 
     inline const date::time_zone* _parse_zone(const std::string_view zone_) const;
+    inline time_point _now() const;
 
 public:
-    static LogTimeZone& tz_instance();
+    static LogTimeZone& tz_instance(clock_fn fn_ = clock_fn{});
 
-    LogTimeZone();
+    explicit LogTimeZone(clock_fn fn_ = clock_fn{});
     ~LogTimeZone();
     LogTimeZone(const LogTimeZone&) = delete;
     LogTimeZone& operator=(const LogTimeZone&) = delete;

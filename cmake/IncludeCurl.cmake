@@ -16,6 +16,7 @@ else()
   FetchContent_Declare(CURL
     URL ${_CURL_URL}
     DOWNLOAD_EXTRACT_TIMESTAMP true
+    OVERRIDE_FIND_PACKAGE
   )
   FetchContent_MakeAvailable(CURL)
 endif()

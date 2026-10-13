@@ -25,6 +25,9 @@ class HasherOpenSsl final : public Hasher
         const EVP_MD* md = nullptr;
         switch (_type)
         {
+        case HashType::MD5:
+            md = EVP_md5();
+            break;
         case HashType::SHA1:
             md = EVP_sha1();
             break;
@@ -78,6 +81,9 @@ public:
 
         switch (_type)
         {
+        case HashType::MD5:
+            std::tie(data, md_len) = get_target(buffer.emplace<HashMd5Type>());
+            break;
         case HashType::SHA1:
             std::tie(data, md_len) = get_target(buffer.emplace<HashSha1Type>());
             break;

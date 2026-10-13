@@ -31,10 +31,8 @@ struct get_hash_type_visitor
     {
         return static_cast<HashType>(hash_size);
     }
-
 };
-}
-
+} // namespace
 
 HashType get_hash_type(const HashValue& hash_) { return std::visit(get_hash_type_visitor{}, hash_); }
 
@@ -42,6 +40,8 @@ std::optional<HashType> get_hash_type(std::span<const std::uint8_t> hash_)
 {
     switch (hash_.size())
     {
+    case static_cast<size_t>(HashType::MD5):
+        return HashType::MD5;
     case static_cast<size_t>(HashType::SHA1):
         return HashType::SHA1;
     case static_cast<size_t>(HashType::SHA256):
@@ -101,13 +101,11 @@ HashValue hash_file(const std::filesystem::path& path_, const std::span<char>& b
 
 namespace
 {
-template <class CharT, class TraitsT = std::char_traits<CharT>>
-struct hash_to_hex_visitor
+template <class CharT, class TraitsT = std::char_traits<CharT>> struct hash_to_hex_visitor
 {
     std::basic_string_view<CharT, TraitsT> _digits;
 
-    constexpr explicit hash_to_hex_visitor(const std::basic_string_view<CharT, TraitsT> digits_) : _digits{ digits_ }
-    {}
+    constexpr explicit hash_to_hex_visitor(const std::basic_string_view<CharT, TraitsT> digits_) : _digits{ digits_ } {}
 
     template <size_t hash_size>
     std::basic_string<CharT, TraitsT> operator()(const std::array<std::uint8_t, hash_size>& hash_) const
@@ -141,8 +139,7 @@ std::wstring whash_to_hex(const HashValue& hash_)
 
 namespace
 {
-template <class CharT>
-struct base64_visitor
+template <class CharT> struct base64_visitor
 {
     template <size_t hash_size>
     std::basic_string<CharT> operator()(const std::array<std::uint8_t, hash_size>& hash_) const
@@ -153,7 +150,7 @@ struct base64_visitor
         return retval;
     }
 };
-}
+} // namespace
 
 std::string hash_to_base64(const HashValue& hash_)
 {
@@ -172,6 +169,10 @@ std::optional<HashType> parseHashType(const std::string_view name_)
     if (name_.empty())
     {
         return std::nullopt;
+    }
+    else if (name_ == "MD5")
+    {
+        return HashType::MD5;
     }
     else if (name_ == "SHA" || name_ == "SHA1")
     {

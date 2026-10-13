@@ -27,7 +27,11 @@ endif()
 
 # hh date
 if (NOT NSTL_USING_STD_CHRONO)
-  set(USE_SYSTEM_TZ_DB ON CACHE BOOL "")
+  if (WIN32)
+    set(USE_SYSTEM_TZ_DB OFF CACHE BOOL "")
+  else()
+    set(USE_SYSTEM_TZ_DB ON CACHE BOOL "")
+  endif()
   set(BUILD_TZ_LIB ON CACHE BOOL "")
   set(COMPILE_WITH_C_LOCALE ON CACHE BOOL "")
 

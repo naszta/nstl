@@ -75,13 +75,22 @@ const date::time_zone* LogTimeZone::_parse_zone(const std::string_view zone_) co
     }
 }
 
-LogTimeZone& LogTimeZone::tz_instance()
+LogTimeZone::time_point LogTimeZone::_now() const
 {
-    static LogTimeZone item;
+    if (_clock) [[unlikely]]
+    {
+        return _clock();
+    }
+    return std::chrono::system_clock::now();
+}
+
+LogTimeZone& LogTimeZone::tz_instance(clock_fn fn_)
+{
+    static LogTimeZone item{ std::move(fn_) };
     return item;
 }
 
-LogTimeZone::LogTimeZone()
+LogTimeZone::LogTimeZone(clock_fn fn_) : _clock{ std::move(fn_) }
 {
     if (const char* zone_name = std::getenv("LOG_TZ"); zone_name)
     {
@@ -100,7 +109,7 @@ void LogTimeZone::setZone(std::optional<std::string> zone_)
 
 std::ostringstream& LogTimeZone::printStamp(std::ostringstream& oss_) const
 {
-    const auto utc_now = std::chrono::system_clock::now();
+    const auto utc_now = _now();
     std::shared_lock sl{ _lock };
     if (_zone)
     {

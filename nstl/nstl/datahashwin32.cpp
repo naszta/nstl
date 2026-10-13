@@ -20,6 +20,8 @@ ALG_ID translateAlgoId(const HashType type_)
 {
     switch (type_)
     {
+    case HashType::MD5:
+        return CALG_MD5;
     case HashType::SHA1:
         return CALG_SHA;
     case HashType::SHA256:
@@ -100,6 +102,9 @@ public:
 
         switch (_type)
         {
+        case HashType::MD5:
+            std::tie(data, hashLen) = get_target(buffer.emplace<HashMd5Type>());
+            break;
         case HashType::SHA1:
             std::tie(data, hashLen) = get_target(buffer.emplace<HashSha1Type>());
             break;

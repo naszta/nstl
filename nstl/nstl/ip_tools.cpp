@@ -2,6 +2,7 @@
 #include "exception.hpp"
 
 #include <charconv>
+#include <limits>
 #include <ostream>
 #include <tuple>
 
@@ -18,6 +19,10 @@ namespace nstl::net
 ipv4_addr create_ipv4_mask(const std::uint8_t mask_) { return create_mask<ipv4_size>(mask_); }
 
 ipv6_addr create_ipv6_mask(const std::uint8_t mask_) { return create_mask<ipv6_size>(mask_); }
+
+namespace
+{
+constexpr auto invalid_mask = std::numeric_limits<std::uint8_t>::max();
 
 template <size_t ip_size, size_t str_size, int ip_class>
 std::optional<ip_addr_base<ip_size>> parse_ip_address(const std::string_view ipaddr_)
@@ -38,6 +43,20 @@ std::optional<ip_addr_base<ip_size>> parse_ip_address(const std::string_view ipa
     ipval.reset();
     return ipval;
 }
+
+template <size_t ip_size> std::uint8_t parse_mask(const std::string_view num_view)
+{
+    const auto endptr = num_view.data() + num_view.size();
+    std::uint8_t mask = 0;
+
+    const auto val = std::from_chars(num_view.data(), endptr, mask);
+    if (val.ptr == endptr && val.ec == std::errc{} && mask <= ip_range_base<ip_size>::ip_max_bits)
+    {
+        return mask;
+    }
+    return invalid_mask;
+}
+} // namespace
 
 template <size_t ip_size, size_t str_size, int ip_class>
 std::optional<ip_range_base<ip_size>> parse_ip_range(const std::string_view range_)
@@ -61,20 +80,13 @@ std::optional<ip_range_base<ip_size>> parse_ip_range(const std::string_view rang
     {
         return retval;
     }
-    if (const auto ip_mask = parse_ip_address<ip_size, str_size, ip_class>(num_view))
+    if (const auto mask = parse_mask<ip_size>(num_view); mask != invalid_mask)
+    {
+        retval.emplace(ip_opt.value(), mask);
+    }
+    else if (const auto ip_mask = parse_ip_address<ip_size, str_size, ip_class>(num_view))
     {
         retval.emplace(ip_opt.value(), ip_mask.value());
-    }
-    else
-    {
-        const auto endptr = num_view.data() + num_view.size();
-        std::uint8_t mask = 0;
-
-        const auto val = std::from_chars(num_view.data(), endptr, mask);
-        if (val.ptr == endptr && val.ec == std::errc{} && mask <= ip_range_base<ip_size>::ip_max_bits)
-        {
-            retval.emplace(ip_opt.value(), mask);
-        }
     }
     return retval;
 }
@@ -184,8 +196,7 @@ std::string to_string(const std::span<const std::uint8_t> ip_)
 
 std::optional<ipv4_addr> is_ipv4(const std::span<const std::uint8_t> addr_)
 {
-    constexpr ip_addr_base<12> prefix{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                       0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
+    constexpr ip_addr_base<12> prefix{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
     if (addr_.size() == ipv4_size)
     {
         ipv4_addr retval;
@@ -225,8 +236,7 @@ bool operator<(const ipv6_range& l_, const ipv6_range& r_)
     return std::tie(l_.ip, l_.mask) < std::tie(r_.ip, r_.mask);
 }
 
-template <size_t ip_size>
-class address_checker
+template <size_t ip_size> class address_checker
 {
     const ip_addr_base<ip_size>& addr;
 
@@ -252,10 +262,8 @@ bool contains_t(const std::span<const ip_range_gen> ranges_, const ip_addr_base<
     const address_checker checker{ address_ };
 
     return std::ranges::find_if(ranges_, [&checker](const ip_range_gen& range_)
-                                { return std::visit(checker, range_); }) !=
-           ranges_.end();
+                                { return std::visit(checker, range_); }) != ranges_.end();
 }
-
 
 bool contains(const std::span<const ip_range_gen> ranges_, const ipv4_addr& address_)
 {
@@ -280,14 +288,11 @@ public:
 
 bool contains(const std::span<const ip_range_gen> ranges_, const ip_addr_gen& address_)
 {
-    return std::visit(ip_contain_visitor{ranges_}, address_);
+    return std::visit(ip_contain_visitor{ ranges_ }, address_);
 }
 
 // ipv gen
-bool ip_range_less::operator()(const ip_addr_gen& l_, const ip_addr_gen& r_) const
-{
-    return std::visit(*this, l_, r_);
-}
+bool ip_range_less::operator()(const ip_addr_gen& l_, const ip_addr_gen& r_) const { return std::visit(*this, l_, r_); }
 
 bool ip_range_less::operator()(const ip_range_gen& l_, const ip_addr_gen& r_) const
 {

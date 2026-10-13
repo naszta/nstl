@@ -7,6 +7,23 @@ namespace nstl
 {
 namespace
 {
+class MacMd5Hasher final : public Hasher
+{
+    CC_MD5_CTX _ctx;
+
+public:
+    MacMd5Hasher() { CC_MD5_Init(&_ctx); }
+    ~MacMd5Hasher() override = default;
+    void reset() override { CC_MD5_Init(&_ctx); }
+    void add(const void* data_, size_t size_) override { CC_MD5_Update(&_ctx, data_, size_); }
+    HashValue finish() override
+    {
+        HashMd5Type retval;
+        CC_MD5_Final(retval.data(), &_ctx);
+        return retval;
+    }
+};
+
 class MacSha1Hasher final : public Hasher
 {
     CC_SHA1_CTX _ctx;
@@ -63,6 +80,8 @@ std::shared_ptr<Hasher> Hasher::factory(const HashType type_)
 {
     switch (type_)
     {
+    case HashType::MD5:
+        return std::make_shared<MacMd5Hasher>();
     case HashType::SHA1:
         return std::make_shared<MacSha1Hasher>();
     case HashType::SHA256:

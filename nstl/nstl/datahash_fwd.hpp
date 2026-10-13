@@ -9,6 +9,7 @@ namespace nstl
 {
 enum class HashType : std::uint32_t
 {
+    MD5 = 16,
     SHA1 = 20,
     SHA256 = 32,
     SHA512 = 64,

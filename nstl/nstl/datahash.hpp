@@ -16,10 +16,11 @@
 namespace nstl
 {
 using HashValType = std::underlying_type_t<HashType>;
+using HashMd5Type = std::array<std::uint8_t, static_cast<HashValType>(HashType::MD5)>;
 using HashSha1Type = std::array<std::uint8_t, static_cast<HashValType>(HashType::SHA1)>;
 using HashSha256Type = std::array<std::uint8_t, static_cast<HashValType>(HashType::SHA256)>;
 using HashSha512Type = std::array<std::uint8_t, static_cast<HashValType>(HashType::SHA512)>;
-using HashValue = std::variant<HashSha1Type, HashSha256Type, HashSha512Type>;
+using HashValue = std::variant<HashMd5Type, HashSha1Type, HashSha256Type, HashSha512Type>;
 
 HashType get_hash_type(const HashValue& hash_);
 std::optional<HashType> get_hash_type(std::span<const std::uint8_t> hash_);

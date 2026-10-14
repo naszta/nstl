@@ -55,6 +55,8 @@ class Client
     long _bw_period{ 10 };
     long _bw_speed{ 10000 };
 
+    inline void _assign(Client&& other_) noexcept;
+
 public:
     using duration = std::chrono::milliseconds;
     static constexpr duration default_timeout{ 10000 };

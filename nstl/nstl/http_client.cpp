@@ -112,24 +112,25 @@ Client::Client(const bool verbose_) : _curl{ ::curl_easy_init() }
     }
 }
 
-Client::~Client() = default;
-
-Client::Client(Client&& other_) noexcept
-    : _curl{ std::move(other_._curl) }, _headers{ std::move(other_._headers) }, _cbs{std::move(other_._cbs)}
+inline void Client::_assign(Client&& other_) noexcept
 {
     std::memcpy(_error.data(), other_._error.data(), _error.size());
+    ::curl_easy_setopt(_curl.get(), CURLOPT_ERRORBUFFER, _error.data());
     std::memset(other_._error.data(), 0, other_._error.size());
+    _curl = std::move(other_._curl);
+    _headers = std::move(other_._headers);
+    _cbs = std::move(other_._cbs);
 }
 
-Client& Client::operator = (Client&& other_) noexcept
+Client::~Client() = default;
+
+Client::Client(Client&& other_) noexcept { this->_assign(std::move(other_)); }
+
+Client& Client::operator=(Client&& other_) noexcept
 {
     if (this != &other_)
     {
-        std::memcpy(_error.data(), other_._error.data(), _error.size());
-        std::memset(other_._error.data(), 0, other_._error.size());
-        _curl = std::move(other_._curl);
-        _headers = std::move(other_._headers);
-        _cbs = std::move(other_._cbs);
+        this->_assign(std::move(other_));
     }
     return *this;
 }
@@ -198,9 +199,14 @@ std::pair<std::int32_t, std::string> Client::post(const char* url_, const std::s
 {
     this->_common(url_, timeout_, verify_);
     NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_POST, 1L));
-    if (!data_.empty())
+    if (data_.empty())
     {
-        NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_POSTFIELDSIZE, data_.size()));
+        NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_POSTFIELDSIZE, 0L));
+        NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_POSTFIELDS, nullptr));
+    }
+    else
+    {
+        NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_POSTFIELDSIZE, static_cast<long>(data_.size())));
         NSTL_CURL_CHECK(::curl_easy_setopt(_curl.get(), CURLOPT_POSTFIELDS, data_.data()));
     }
     std::string retval;

@@ -11,6 +11,9 @@
 #define NSTL_WRN_DATE_PUSH
 #define NSTL_WRN_DATE_POP
 
+#define NSTL_DEPRECATED_PUSH
+#define NSTL_DEPRECATED_POP
+
 #else
 
 #ifdef __GNUG__
@@ -26,6 +29,9 @@
     _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wold-style-cast\"") \
         _Pragma("GCC diagnostic ignored \"-Wswitch-enum\"") _Pragma("GCC diagnostic ignored \"-Wswitch-default\"")
 #define NSTL_WRN_DATE_POP _Pragma("GCC diagnostic pop")
+
+#define NSTL_DEPRECATED_PUSH _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+#define NSTL_DEPRECATED_POP _Pragma("GCC diagnostic pop")
 
 #endif
 

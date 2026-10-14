@@ -1,5 +1,6 @@
 #include "datahash.hpp"
 #include "exception.hpp"
+#include "compiler.hpp"
 
 #include <CommonCrypto/CommonDigest.h>
 
@@ -7,6 +8,8 @@ namespace nstl
 {
 namespace
 {
+NSTL_DEPRECATED_PUSH
+
 class MacMd5Hasher final : public Hasher
 {
     CC_MD5_CTX _ctx;
@@ -23,6 +26,8 @@ public:
         return retval;
     }
 };
+
+NSTL_DEPRECATED_POP
 
 class MacSha1Hasher final : public Hasher
 {

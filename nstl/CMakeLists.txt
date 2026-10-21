@@ -38,6 +38,7 @@ SET(nstllibHdrs
   nstl/scope_exit.hpp
   nstl/secure_string.hpp
   nstl/signal_barrier.hpp
+  nstl/spf_tools.hpp
   nstl/string.hpp
   nstl/temp_dir.hpp
   nstl/unlock_guard.hpp
@@ -61,6 +62,7 @@ SET(nstllibSrcs
   nstl/logger.cpp
   nstl/logging.cpp
   nstl/signal_barrier_common.cpp
+  nstl/spf_tools.cpp
   nstl/temp_dir.cpp
 )
 

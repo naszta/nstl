@@ -6,6 +6,7 @@ INCLUDE_DIRECTORIES(
 
 SET(nstltestSrcs
   main.cpp
+  ping_tests.cpp
   csv_dict_reader_tests.cpp
   ip_tools_tests.cpp
   version_tests.cpp

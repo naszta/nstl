@@ -32,6 +32,7 @@ SET(nstllibHdrs
   nstl/math.hpp
   nstl/memory.hpp
   nstl/parse.hpp
+  nstl/ping.hpp
   nstl/range_print.hpp
   nstl/ro_buffer.hpp
   nstl/safe_basename.hpp
@@ -60,6 +61,7 @@ SET(nstllibSrcs
   nstl/ip_tools.cpp
   nstl/logger.cpp
   nstl/logging.cpp
+  nstl/ping.cpp
   nstl/signal_barrier_common.cpp
   nstl/temp_dir.cpp
 )
@@ -68,17 +70,17 @@ CONFIGURE_FILE(${nstllib_SOURCE_DIR}/version.cpp.in ${nstllib_BINARY_DIR}/versio
 list(APPEND nstllibSrcs ${nstllib_BINARY_DIR}/version.cpp)
 
 if(LINUX)
-  list(APPEND nstllibSrcs nstl/signal_barrier_linux.cpp nstl/dns_tools_posix.cpp nstl/file_trigger_linux.cpp)
+  list(APPEND nstllibSrcs nstl/signal_barrier_linux.cpp nstl/dns_tools_posix.cpp nstl/file_trigger_linux.cpp nstl/ping_posix.cpp)
   if (NSTL_HAVE_BACKTRACE)
     list(APPEND nstllibSrcs nstl/backtrace_linux.cpp)
   else ()
     list(APPEND nstllibSrcs nstl/backtrace_common.cpp)
   endif()
 elseif(WIN32)
-  list(APPEND nstllibSrcs nstl/signal_barrier.cpp nstl/backtrace_win32.cpp nstl/dns_tools_w32.cpp nstl/file_trigger_win32.cpp)
+  list(APPEND nstllibSrcs nstl/signal_barrier.cpp nstl/backtrace_win32.cpp nstl/dns_tools_w32.cpp nstl/file_trigger_win32.cpp nstl/ping_w32.cpp)
   add_compile_definitions(_CRT_NONSTDC_NO_DEPRECATE=1)
 else()
-  list(APPEND nstllibSrcs nstl/signal_barrier.cpp nstl/backtrace_common.cpp nstl/dns_tools_posix.cpp nstl/file_trigger_apple.cpp)
+  list(APPEND nstllibSrcs nstl/signal_barrier.cpp nstl/backtrace_common.cpp nstl/dns_tools_posix.cpp nstl/file_trigger_apple.cpp nstl/ping_posix.cpp)
 endif()
 
 set(nstllib_private_dependencies
@@ -122,7 +124,7 @@ if (NOT MSVC)
 endif()
 
 if (WIN32)
-  list(APPEND nstllib_private_dependencies Ws2_32.lib Dnsapi.lib dbghelp.lib)
+  list(APPEND nstllib_private_dependencies Ws2_32.lib Dnsapi.lib Iphlpapi.lib dbghelp.lib)
 else()
   list(APPEND nstllib_private_dependencies resolv)
 endif()

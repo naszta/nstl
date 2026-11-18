@@ -1,0 +1,114 @@
+#include "worker.hpp"
+#include "nft.hpp"
+
+#include <nstl/dns_tools.hpp>
+#include <nstl/exception.hpp>
+#include <nstl/logging.hpp>
+#include <nstl/range_print.hpp>
+
+#include <format>
+#include <sstream>
+
+namespace nstl::ddns
+{
+namespace
+{
+std::shared_ptr<nft_base> nft_factory(const bool dry_run_)
+{
+    if (dry_run_)
+    {
+        return std::make_shared<nft_logonly>();
+    }
+    else
+    {
+        return std::make_shared<nft>();
+    }
+}
+
+rule_applier applier_factory(const bool dry_run_)
+{
+    auto ptr = nft_factory(dry_run_);
+    NSTL2_THROW_EXCEPTION_IF(!ptr->valid(), "NFT target is not valid");
+    return [ptr = std::move(ptr)](const std::string& name_, const std::string& table_, const ip_addresses& addresses_)
+    {
+        const auto flush_cmd = std::format("flush set {} {}", table_, name_);
+        if (!ptr->execute(flush_cmd.c_str()))
+        {
+            return false;
+        }
+        if (addresses_.empty())
+        {
+            return true;
+        }
+
+        std::ostringstream ip_command;
+        ip_command << "add element " << table_ << ' ' << name_ << " { " << range_print(addresses_, ',') << " }";
+        const auto ips_cmd = ip_command.str();
+
+        return ptr->execute(ips_cmd.c_str());
+    };
+}
+} // namespace
+
+worker::worker(configs configs_, const bool dry_run_)
+    : _configs{ std::move(configs_) }, _applier{ applier_factory(dry_run_) }
+{
+    _cache.reserve(_configs.size());
+}
+
+void worker::names_item::check_item(const std::string& name_, const config& cfg_, const rule_applier& apply_)
+{
+    try
+    {
+        other.clear();
+        for (const auto& name : cfg_.ddns_names)
+        {
+            if (const auto ip_addresses = nstl::net::ips_name(name, cfg_.ip_class))
+            {
+                for (const auto& item : ip_addresses.value())
+                {
+                    other.insert(cfg_.apply_mask(item));
+                }
+            }
+        }
+    }
+    catch (const std::exception& exc)
+    {
+        state = State::Pending;
+        NSTL_ERROR("DDNS failed to process: " << exc.what());
+        return;
+    }
+
+    const bool has_change = other != addresses;
+    if (!has_change && state == State::Ready)
+    {
+        NSTL_DEBUG(name_ << ": addresses has't been changed [" << range_print(addresses, ',') << "]");
+        return;
+    }
+    if (has_change)
+    {
+        state = State::Pending;
+        other.swap(addresses);
+    }
+    NSTL_INFO(name_ << ": addresses updated from [" << range_print(other, ',') << "] to ["
+                    << range_print(addresses, ',') << "]");
+    if (apply_(name_, cfg_.table, addresses))
+    {
+        state = State::Ready;
+    }
+}
+
+void worker::_check_items()
+{
+    for (const auto& [name, config] : _configs)
+    {
+        if (config.enabled)
+        {
+            auto& target = _cache[name];
+            target.check_item(name, config, _applier);
+        }
+    }
+}
+
+bool worker::stop() { return _enabled.exchange(false); }
+} // namespace nstl::ddns

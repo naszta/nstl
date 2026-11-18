@@ -19,8 +19,7 @@ constexpr const size_t bytes_in_bits = 8;
 constexpr const size_t ipv4_size = 4;
 constexpr const size_t ipv6_size = 16;
 
-template <size_t ip_size>
-using ip_addr_base = std::array<std::uint8_t, ip_size>;
+template <size_t ip_size> using ip_addr_base = std::array<std::uint8_t, ip_size>;
 
 template <size_t data_size>
 void and_arrays(const ip_addr_base<data_size>& a_, const ip_addr_base<data_size>& b_, ip_addr_base<data_size>& dst_)
@@ -74,9 +73,11 @@ template <std::size_t ip_size> struct ip_range_base
 };
 
 using ipv4_addr = ip_addr_base<ipv4_size>;
+std::ostream& to_stream(std::ostream& os_, const ipv4_addr& ip_);
 std::ostream& operator<<(std::ostream& os_, const ipv4_addr& ip_);
 
 using ipv6_addr = ip_addr_base<ipv6_size>;
+std::ostream& to_stream(std::ostream& os_, const ipv6_addr& ip_);
 std::ostream& operator<<(std::ostream& os_, const ipv6_addr& ip_);
 
 ipv4_addr create_ipv4_mask(const std::uint8_t mask_);
@@ -97,14 +98,17 @@ std::optional<ipv4_addr> parse_ip4_address(std::string_view ipaddr_);
 std::optional<ipv6_addr> parse_ip6_address(std::string_view ipaddr_);
 std::variant<std::monostate, ipv4_addr, ipv6_addr> parse_ip_address(std::string_view ipaddr_);
 
+using ip_addr_gen = std::variant<ipv4_addr, ipv6_addr>;
+std::ostream& to_stream(std::ostream& os_, const ip_addr_gen& ip_);
+std::ostream& operator<<(std::ostream& os_, const ip_addr_gen& ip_);
+
 std::string to_string(const ipv4_addr& ip_);
 std::string to_string(const ipv6_addr& ip_);
 std::string to_string(std::span<const std::uint8_t> ip_);
-std::string to_string(const std::variant<ipv4_addr, ipv6_addr>& addr_);
+std::string to_string(const ip_addr_gen& addr_);
 std::optional<ipv4_addr> is_ipv4(std::span<const std::uint8_t> addr_);
 
 using ip_range_gen = std::variant<ipv4_range, ipv6_range>;
-using ip_addr_gen = std::variant<ipv4_addr, ipv6_addr>;
 
 bool contains(std::span<const ip_range_gen> ranges_, const ipv4_addr& address_);
 bool contains(std::span<const ip_range_gen> ranges_, const ipv6_addr& address_);

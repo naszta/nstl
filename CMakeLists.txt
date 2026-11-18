@@ -19,6 +19,7 @@ include(cmake/IncludeBoost.cmake)
 include(cmake/IncludeTbb.cmake)
 include(cmake/IncludeCurl.cmake)
 include(cmake/IncludeGTest.cmake)
+include(cmake/IncludeJson.cmake)
 
 # openssl
 if (NSTL_USING_OPENSSL)
@@ -55,6 +56,7 @@ INCLUDE_DIRECTORIES(
 
 ADD_SUBDIRECTORY(nstl)
 ADD_SUBDIRECTORY(bin)
+ADD_SUBDIRECTORY(ddns)
 ADD_SUBDIRECTORY(spf_resolver)
 
 enable_testing()

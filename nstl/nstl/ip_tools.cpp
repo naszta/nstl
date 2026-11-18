@@ -101,7 +101,7 @@ std::optional<ipv6_range> parse_ip6_range(const std::string_view range_)
     return parse_ip_range<ipv6_size, INET6_ADDRSTRLEN, AF_INET6>(range_);
 }
 
-std::ostream& operator<<(std::ostream& os_, const ipv4_addr& ip_)
+std::ostream& to_stream(std::ostream& os_, const ipv4_addr& ip_)
 {
     std::array<char, INET_ADDRSTRLEN> buffer;
     const char* ptr = ::inet_ntop(AF_INET, ip_.data(), buffer.data(), buffer.size());
@@ -115,7 +115,9 @@ std::ostream& operator<<(std::ostream& os_, const ipv4_addr& ip_)
     return os_;
 }
 
-std::ostream& operator<<(std::ostream& os_, const ipv6_addr& ip_)
+std::ostream& operator<<(std::ostream& os_, const ipv4_addr& ip_) { return to_stream(os_, ip_); }
+
+std::ostream& to_stream(std::ostream& os_, const ipv6_addr& ip_)
 {
     std::array<char, INET6_ADDRSTRLEN> buffer;
     const char* ptr = ::inet_ntop(AF_INET6, ip_.data(), buffer.data(), buffer.size());
@@ -128,6 +130,8 @@ std::ostream& operator<<(std::ostream& os_, const ipv6_addr& ip_)
     os_ << ip_name;
     return os_;
 }
+
+std::ostream& operator<<(std::ostream& os_, const ipv6_addr& ip_) { return to_stream(os_, ip_); }
 
 std::ostream& operator<<(std::ostream& os_, const ipv4_range& ip_) { return os_ << ip_.ip << '/' << ip_.mask; }
 
@@ -163,7 +167,20 @@ struct ip_visitor
     std::string operator()(const ipv4_addr& ip_) const { return to_string(ip_); }
     std::string operator()(const ipv6_addr& ip_) const { return to_string(ip_); }
 };
+
+struct ip_os_visitor
+{
+    std::ostream& _os;
+    explicit ip_os_visitor(std::ostream& os_) : _os{ os_ } {}
+
+    std::ostream& operator()(const ipv4_addr& ip_) const { return to_stream(_os, ip_); }
+    std::ostream& operator()(const ipv6_addr& ip_) const { return to_stream(_os, ip_); }
+};
 } // namespace
+
+std::ostream& to_stream(std::ostream& os_, const ip_addr_gen& ip_) { return std::visit(ip_os_visitor{ os_ }, ip_); }
+
+std::ostream& operator<<(std::ostream& os_, const ip_addr_gen& ip_) { return to_stream(os_, ip_); }
 
 std::string to_string(const ipv4_addr& ip_)
 {
@@ -181,7 +198,7 @@ std::string to_string(const ipv6_addr& ip_)
     return std::string{ ptr, strnlen(ptr, buffer.size()) };
 }
 
-std::string to_string(const std::variant<ipv4_addr, ipv6_addr>& addr_) { return std::visit(ip_visitor{}, addr_); }
+std::string to_string(const ip_addr_gen& addr_) { return std::visit(ip_visitor{}, addr_); }
 
 std::string to_string(const std::span<const std::uint8_t> ip_)
 {

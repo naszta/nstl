@@ -1,5 +1,5 @@
 SET(nstlroot_MAJOR_VERSION 0)
-SET(nstlroot_MINOR_VERSION 5)
+SET(nstlroot_MINOR_VERSION 6)
 SET(nstlroot_BUILD_VERSION 0)
 
 FIND_PACKAGE(Git)

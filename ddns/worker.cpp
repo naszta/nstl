@@ -50,9 +50,11 @@ rule_applier applier_factory(const bool dry_run_)
 }
 } // namespace
 
-worker::worker(configs configs_, const bool dry_run_)
-    : _configs{ std::move(configs_) }, _applier{ applier_factory(dry_run_) }
+worker::worker(configs configs_, const bool dry_run_) : worker{ std::move(configs_), applier_factory(dry_run_) } {}
+
+worker::worker(configs configs_, rule_applier applier_) : _configs{ std::move(configs_) }, _applier{ std::move(applier_) }
 {
+    NSTL2_THROW_EXCEPTION_IF(!_applier, "rule applier is empty");
     _cache.reserve(_configs.size());
 }
 

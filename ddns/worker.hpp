@@ -42,6 +42,7 @@ class worker
 
 public:
     explicit worker(configs configs_, bool dry_run_ = false);
+    worker(configs configs_, rule_applier applier_);
 
     template <class Rep, class Period> void run(std::chrono::duration<Rep, Period> dur_)
     {

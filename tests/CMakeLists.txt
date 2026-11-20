@@ -8,6 +8,7 @@ SET(nstltestSrcs
   main.cpp
   ping_tests.cpp
   csv_dict_reader_tests.cpp
+  spf_tools_tests.cpp
   ip_tools_tests.cpp
   version_tests.cpp
   args_editor_tests.cpp

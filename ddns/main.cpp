@@ -3,6 +3,7 @@
 
 #include <nstl/global_init.hpp>
 #include <nstl/logger.hpp>
+#include <nstl/log_rotate.hpp>
 #include <nstl/version.hpp>
 
 #include <boost/program_options.hpp>
@@ -56,6 +57,7 @@ int main(int argc_, char** argv_)
 
     const nstl::global_init instance;
     const auto level = verbose ? nstl::log::level::Debug : nstl::log::level::Info;
+    nstl::log_rotate(log_file);
     const auto logger = log_file.empty() ? nstl::log::Logger{ level } : nstl::log::Logger{ log_file, level };
 
     auto configs = nstl::ddns::parse_file(config_file);

@@ -28,6 +28,7 @@ SET(nstllibHdrs
   nstl/ip_tools.hpp
   nstl/logger.hpp
   nstl/logging.hpp
+  nstl/log_rotate.hpp
   nstl/macros.hpp
   nstl/math.hpp
   nstl/memory.hpp
@@ -61,6 +62,7 @@ SET(nstllibSrcs
   nstl/ip_tools.cpp
   nstl/logger.cpp
   nstl/logging.cpp
+  nstl/log_rotate.cpp
   nstl/ping.cpp
   nstl/signal_barrier_common.cpp
   nstl/temp_dir.cpp

@@ -52,10 +52,10 @@ rule_applier applier_factory(const bool dry_run_)
 
 worker::worker(configs configs_, const bool dry_run_) : worker{ std::move(configs_), applier_factory(dry_run_) } {}
 
-worker::worker(configs configs_, rule_applier applier_) : _configs{ std::move(configs_) }, _applier{ std::move(applier_) }
+worker::worker(configs configs_, rule_applier applier_)
+    : _configs{ std::move(configs_) }, _applier{ std::move(applier_) }, _cache{64}, _regular_log{ std::chrono::steady_clock::now() }
 {
     NSTL2_THROW_EXCEPTION_IF(!_applier, "rule applier is empty");
-    _cache.reserve(_configs.size());
 }
 
 void worker::names_item::check_item(const std::string& name_, const config& cfg_, const rule_applier& apply_)
@@ -106,8 +106,27 @@ void worker::_check_items()
     {
         if (config.enabled)
         {
-            auto& target = _cache[name];
-            target.check_item(name, config, _applier);
+            named_addresses::accessor accessor;
+            _cache.insert(accessor, name);
+            accessor->second.check_item(name, config, _applier);
+        }
+    }
+}
+
+void worker::_logging()
+{
+    const auto now = std::chrono::steady_clock::now();
+    if (now - _regular_log < std::chrono::hours{ 1 }) [[likely]]
+    {
+        return;
+    }
+    _regular_log = now;
+    for (const auto& [name, _] : _configs)
+    {
+        named_addresses::const_accessor accessor;
+        if (_cache.find(accessor, name))
+        {
+            NSTL_INFO("Current state: " << name << " values: [" << range_print(accessor->second.addresses, ", ") << ']');
         }
     }
 }

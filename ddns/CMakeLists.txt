@@ -31,6 +31,7 @@ set_target_properties(nstlddns PROPERTIES
 
 set(nstlddns_dependencies
   nstllib
+  TBB::tbb
   nlohmann_json::nlohmann_json
   Boost::headers
   Boost::program_options

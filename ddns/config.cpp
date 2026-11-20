@@ -120,6 +120,8 @@ void config::reset()
     this->ip_class = nstl::net::IpClass::Ipv4;
     this->ddns_names.clear();
     this->mask = std::monostate{};
+    this->range = 0;
+    this->enabled = true;
 }
 
 bool config::valid() const { return !this->table.empty() && !this->ddns_names.empty(); }
@@ -155,38 +157,47 @@ namespace
 {
 struct ip_visitor
 {
-    const net::ip_addr_gen& _ip;
     std::uint8_t _range;
 
-    ip_visitor(const net::ip_addr_gen& ip_, std::uint8_t range_) : _ip{ ip_ }, _range{ range_ } {}
+    explicit ip_visitor(std::uint8_t range_) : _range{ range_ } {}
 
-    std::string operator()(const std::monostate&) const { return net::to_string(_ip); }
-    std::string operator()(const net::ipv4_addr& mask_) const
+    // mo mask
+    std::string operator()(const net::ipv4_addr& ip_, const std::monostate&) const { return net::to_string(ip_); }
+    std::string operator()(const net::ipv6_addr& ip_, const std::monostate&) const { return net::to_string(ip_); }
+    // proper mask
+    std::string operator()(const net::ipv4_addr& ip_, const net::ipv4_addr& mask_) const
     {
-        const auto& address = std::get<net::ipv4_addr>(_ip);
         net::ipv4_addr result;
-        net::and_arrays(address, mask_, result);
+        net::and_arrays(ip_, mask_, result);
         std::ostringstream oss;
         net::to_stream(oss, result);
         oss << '/' << static_cast<int>(_range);
         return oss.str();
     }
-    std::string operator()(const net::ipv6_addr& mask_) const
+    std::string operator()(const net::ipv6_addr& ip_, const net::ipv6_addr& mask_) const
     {
-        const auto& address = std::get<net::ipv6_addr>(_ip);
         net::ipv6_addr result;
-        net::and_arrays(address, mask_, result);
+        net::and_arrays(ip_, mask_, result);
         std::ostringstream oss;
         net::to_stream(oss, result);
         oss << '/' << static_cast<int>(_range);
         return oss.str();
+    }
+    // we have a bug
+    std::string operator()(const net::ipv6_addr&, const net::ipv4_addr&) const
+    {
+        NSTL2_THROW_EXCEPTION("IPv4 mask must not be applied on IPv6 address: we have a bug");
+    }
+    std::string operator()(const net::ipv4_addr&, const net::ipv6_addr&) const
+    {
+        NSTL2_THROW_EXCEPTION("IPv6 mask must not be applied on IPv4 address: we have a bug");
     }
 };
 } // namespace
 
 std::string config::apply_mask(const net::ip_addr_gen& ip_) const
 {
-    return std::visit(ip_visitor{ ip_, this->range }, mask);
+    return std::visit(ip_visitor{ this->range }, ip_, mask);
 }
 
 } // namespace nstl::ddns

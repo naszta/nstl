@@ -12,12 +12,15 @@ SET(ddnsHdrs
 
 SET(ddnsSrcs
   config.cpp
-  main.cpp
   nft.cpp
   worker.cpp
 )
 
-add_executable(nstlddns ${ddnsSrcs} ${ddnsHdrs})
+add_library(nstlddnslib STATIC ${ddnsSrcs} ${ddnsHdrs})
+target_compile_features(nstlddnslib PUBLIC cxx_std_20)
+target_include_directories(nstlddnslib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+add_executable(nstlddns main.cpp)
 
 target_compile_features(nstlddns PUBLIC cxx_std_20)
 
@@ -37,6 +40,9 @@ if(LINUX)
   list(APPEND nstlddns_dependencies nftables)
 endif()
 
-TARGET_LINK_LIBRARIES(nstlddns PRIVATE ${nstlddns_dependencies})
+TARGET_LINK_LIBRARIES(nstlddnslib PUBLIC ${nstlddns_dependencies})
+TARGET_LINK_LIBRARIES(nstlddns PRIVATE nstlddnslib)
+
+ADD_SUBDIRECTORY(test)
 
 install(TARGETS nstlddns DESTINATION bin)

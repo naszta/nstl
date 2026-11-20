@@ -4,7 +4,8 @@ if (Boost_FOUND)
   message(STATUS "Boost found locally")
 else()
   set(NSTL_BOOST_VERSION boost-1.92.0 CACHE STRING "boost version")
-  message(STATUS "Downloading Boost version: ${NSTL_BOOST_VERSION}")
+  set(BOOST_INCLUDE_LIBRARIES serialization;program_options;tokenizer;headers)
+  message(STATUS "Downloading Boost version: ${NSTL_BOOST_VERSION}; included: ${BOOST_INCLUDE_LIBRARIES}")
   FetchContent_Declare(
     Boost
     GIT_REPOSITORY https://github.com/boostorg/boost.git

@@ -3,6 +3,7 @@
 
 #include <nstl/global_init.hpp>
 #include <nstl/logger.hpp>
+#include <nstl/version.hpp>
 
 #include <boost/program_options.hpp>
 
@@ -19,6 +20,7 @@ int main(int argc_, char** argv_)
     bool verbose = false;
     bool show_help = false;
     bool dry_run = false;
+    bool show_version = false;
     std::string config_file;
     std::string log_file;
 
@@ -27,7 +29,8 @@ int main(int argc_, char** argv_)
                        "config file path")("logfile,l", po::value(&log_file), "log file (if not set: stdout)")(
         "dry,d", po::bool_switch(&dry_run)->implicit_value(true),
         "dry run")("verbose,v", po::bool_switch(&verbose)->implicit_value(true),
-                   "Verbose logs")("help,h", po::bool_switch(&show_help)->implicit_value(true), "Show help");
+                   "Verbose logs")("help,h", po::bool_switch(&show_help)->implicit_value(true),
+                                   "Show help")("version", po::bool_switch(&show_version)->implicit_value(true), "Show version");
     po::variables_map vm;
     try
     {
@@ -44,6 +47,11 @@ int main(int argc_, char** argv_)
     {
         std::cout << desc << std::endl;
         return EXIT_FAILURE;
+    }
+    if (show_version)
+    {
+        std::cout << "Version: " << nstl::version() << std::endl;
+        return EXIT_SUCCESS;
     }
 
     const nstl::global_init instance;

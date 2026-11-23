@@ -16,6 +16,7 @@ using namespace std::chrono_literals;
 
 using nstl::ddns::config;
 using nstl::ddns::configs;
+using nstl::ddns::custom_dns;
 using nstl::ddns::ip_addresses;
 using nstl::ddns::rule_applier;
 using nstl::ddns::worker;
@@ -106,13 +107,16 @@ bool run_until(worker& worker_, const std::function<bool()>& done_)
 }
 } // namespace
 
-TEST(DdnsWorker, EmptyApplierThrows) { EXPECT_THROW((worker{ configs{}, rule_applier{} }), nstl::exception); }
+TEST(DdnsWorker, EmptyApplierThrows)
+{
+    EXPECT_THROW((worker{ configs{}, custom_dns{}, rule_applier{} }), nstl::exception);
+}
 
-TEST(DdnsWorker, DryRunConstructs) { EXPECT_NO_THROW((worker{ configs{}, true })); }
+TEST(DdnsWorker, DryRunConstructs) { EXPECT_NO_THROW((worker{ configs{}, custom_dns{}, true })); }
 
 TEST(DdnsWorker, StopReturnsPreviousState)
 {
-    worker w{ configs{}, true };
+    worker w{ configs{}, custom_dns{}, true };
     EXPECT_TRUE(w.stop());
     EXPECT_FALSE(w.stop());
 }
@@ -120,7 +124,7 @@ TEST(DdnsWorker, StopReturnsPreviousState)
 TEST(DdnsWorker, EmptyConfigsRunAndStop)
 {
     recording_applier rec;
-    worker w{ configs{}, rec.get() };
+    worker w{ configs{}, custom_dns{}, rec.get() };
     // nothing to wait for: the condition never holds, so this runs until the timeout
     std::thread runner{ [&w] { w.run(tick); } };
     std::this_thread::sleep_for(settle_time);
@@ -134,7 +138,7 @@ TEST(DdnsWorker, AppliesResolvedAddresses)
     recording_applier rec;
     configs cfgs;
     cfgs.emplace("home", make_config("inet filter", { "localhost" }));
-    worker w{ std::move(cfgs), rec.get() };
+    worker w{ std::move(cfgs), custom_dns{}, rec.get() };
 
     ASSERT_TRUE(run_until(w, [&] { return rec.count() >= 1; }));
     const auto calls = rec.calls();
@@ -153,7 +157,7 @@ TEST(DdnsWorker, AppliesMaskedAddresses)
     cfg.range = 8;
     cfg.mask = nstl::net::create_ipv4_mask(cfg.range);
     cfgs.emplace("home", std::move(cfg));
-    worker w{ std::move(cfgs), rec.get() };
+    worker w{ std::move(cfgs), custom_dns{}, rec.get() };
 
     ASSERT_TRUE(run_until(w, [&] { return rec.count() >= 1; }));
     const auto calls = rec.calls();
@@ -166,7 +170,7 @@ TEST(DdnsWorker, DuplicateNamesDeduplicated)
     recording_applier rec;
     configs cfgs;
     cfgs.emplace("home", make_config("inet filter", { "localhost", "localhost" }));
-    worker w{ std::move(cfgs), rec.get() };
+    worker w{ std::move(cfgs), custom_dns{}, rec.get() };
 
     ASSERT_TRUE(run_until(w, [&] { return rec.count() >= 1; }));
     const auto calls = rec.calls();
@@ -182,7 +186,7 @@ TEST(DdnsWorker, DisabledConfigSkipped)
     disabled.enabled = false;
     cfgs.emplace("disabled", std::move(disabled));
     cfgs.emplace("enabled", make_config("inet other", { "localhost" }));
-    worker w{ std::move(cfgs), rec.get() };
+    worker w{ std::move(cfgs), custom_dns{}, rec.get() };
 
     ASSERT_TRUE(run_until(w, [&] { return rec.count() >= 1; }));
     const auto calls = rec.calls();
@@ -197,7 +201,7 @@ TEST(DdnsWorker, MultipleConfigsEachApplied)
     configs cfgs;
     cfgs.emplace("a", make_config("table_a", { "localhost" }));
     cfgs.emplace("b", make_config("table_b", { "localhost" }));
-    worker w{ std::move(cfgs), rec.get() };
+    worker w{ std::move(cfgs), custom_dns{}, rec.get() };
 
     ASSERT_TRUE(run_until(w, [&] { return rec.count() >= 2; }));
     const auto calls = rec.calls();
@@ -215,7 +219,7 @@ TEST(DdnsWorker, FailedApplyIsRetried)
     recording_applier rec{ [](std::size_t idx_) { return idx_ >= failures; } };
     configs cfgs;
     cfgs.emplace("home", make_config("inet filter", { "localhost" }));
-    worker w{ std::move(cfgs), rec.get() };
+    worker w{ std::move(cfgs), custom_dns{}, rec.get() };
 
     ASSERT_TRUE(run_until(w, [&] { return rec.count() >= failures + 1; }));
     const auto calls = rec.calls();
@@ -233,7 +237,7 @@ TEST(DdnsWorker, UnresolvableNameAppliesEmptySetAtMostOnce)
     recording_applier rec;
     configs cfgs;
     cfgs.emplace("home", make_config("inet filter", { "this-host-should-never-exist.invalid" }));
-    worker w{ std::move(cfgs), rec.get() };
+    worker w{ std::move(cfgs), custom_dns{}, rec.get() };
 
     // Depending on the resolver, an unknown host is reported either as "no address" (empty set gets
     // applied once to flush the nft set) or as a resolver error (nothing is applied). Either way the

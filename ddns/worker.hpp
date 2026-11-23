@@ -9,7 +9,13 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <memory>
 #include <thread>
+
+namespace nstl::net
+{
+struct dns_config;
+}
 
 namespace nstl::ddns
 {
@@ -29,7 +35,8 @@ class worker
     };
     struct names_item
     {
-        void check_item(const std::string& name_, const config& cfg_, const rule_applier& apply_);
+        void check_item(const std::string& name_, const config& cfg_,
+                        const rule_applier& apply_, observer_ptr<const net::dns_config> dns_cfg_ = nullptr);
         ip_addresses addresses;
         ip_addresses other;
         State state{ State::Pending };
@@ -41,13 +48,14 @@ class worker
     rule_applier _applier;
     named_addresses _cache;
     time_point _regular_log;
+    std::shared_ptr<const net::dns_config> _cfg;
 
     void _check_items();
     void _logging();
 
 public:
-    explicit worker(configs configs_, bool dry_run_ = false);
-    worker(configs configs_, rule_applier applier_);
+    worker(configs configs_, custom_dns cdns_, bool dry_run_ = false);
+    worker(configs configs_, custom_dns cdns_, rule_applier applier_);
 
     template <class Rep, class Period> void run(std::chrono::duration<Rep, Period> dur_)
     {

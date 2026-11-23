@@ -60,7 +60,7 @@ int main(int argc_, char** argv_)
     nstl::log_rotate(log_file);
     const auto logger = log_file.empty() ? nstl::log::Logger{ level } : nstl::log::Logger{ log_file, level };
 
-    auto configs = nstl::ddns::parse_file(config_file);
+    auto [configs, cdns] = nstl::ddns::parse_file(config_file);
     if (configs.empty())
     {
         std::cerr << "empty config" << std::endl;
@@ -69,7 +69,7 @@ int main(int argc_, char** argv_)
 
     NSTL_INFO("Binary version: " << nstl::version());
 
-    nstl::ddns::worker runner{ std::move(configs), dry_run };
+    nstl::ddns::worker runner{ std::move(configs), std::move(cdns), dry_run };
     runner.run(std::chrono::seconds{ 1 });
     return EXIT_SUCCESS;
 }

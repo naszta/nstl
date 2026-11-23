@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <set>
+#include <thread>
 
 TEST(DnsTools, AandAAA)
 {
@@ -174,4 +175,28 @@ TEST(DnsTools, CustomDNSTest)
     config.dns_servers.push_back(nstl::net::parse_ip4_address("1.1.1.1").value());
     const auto ip_opt_a = nstl::net::ips_name("naszta.hu", nstl::net::IpClass::IpvAll, nstl::make_observer(&config));
     EXPECT_TRUE(ip_opt_a.has_value());
+}
+
+TEST(DnsTools, CustomDNSCachedStateReuse)
+{
+    nstl::net::dns_config config;
+    config.dns_servers.push_back(nstl::net::parse_ip4_address("1.1.1.1").value());
+    nstl::net::dns_config config_swapped;
+    config_swapped.dns_servers.push_back(nstl::net::parse_ip4_address("8.8.8.8").value());
+    config_swapped.dns_servers.push_back(nstl::net::parse_ip4_address("1.1.1.1").value());
+
+    const auto run_lookups = [&]
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            EXPECT_TRUE(nstl::net::ip_a_name("naszta.hu", nstl::make_observer(&config)).has_value());
+            EXPECT_TRUE(nstl::net::ip_a_name("naszta.hu", nstl::make_observer(&config_swapped)).has_value());
+            EXPECT_TRUE(nstl::net::ip_a_name("naszta.hu").has_value());
+        }
+    };
+
+    run_lookups();
+    // cached states are released at thread exit
+    std::thread worker{ run_lookups };
+    worker.join();
 }

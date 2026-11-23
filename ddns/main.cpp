@@ -67,6 +67,8 @@ int main(int argc_, char** argv_)
         return EXIT_FAILURE;
     }
 
+    NSTL_INFO("Binary version: " << nstl::version());
+
     nstl::ddns::worker runner{ std::move(configs), dry_run };
     runner.run(std::chrono::seconds{ 1 });
     return EXIT_SUCCESS;

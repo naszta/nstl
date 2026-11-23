@@ -9,6 +9,7 @@
 #include <iphlpapi.h>
 #include <windns.h>
 
+#include <algorithm>
 #include <stdexcept>
 #include <utility>
 
@@ -18,11 +19,11 @@ namespace
 {
 struct DnsRecordDeleter
 {
-    void operator()(DNS_RECORD* ptr) const { ::DnsFree(ptr, DnsFreeRecordList); }
+    void operator()(DNS_RECORDW* ptr) const { ::DnsFree(ptr, DnsFreeRecordList); }
 };
-using DnsRecordPtr = std::unique_ptr<DNS_RECORD, DnsRecordDeleter>;
+using DnsRecordPtr = std::unique_ptr<DNS_RECORDW, DnsRecordDeleter>;
 
-std::string to_utf8(const std::wstring_view view_)
+std::string to_utf8_view(const std::wstring_view view_)
 {
     const auto size =
         ::WideCharToMultiByte(CP_UTF8, 0, view_.data(), static_cast<int>(view_.size()), nullptr, 0, nullptr, nullptr);
@@ -33,11 +34,13 @@ std::string to_utf8(const std::wstring_view view_)
     std::string retval(static_cast<size_t>(size), '\0');
     NSTL2_THROW_EXCEPTION_IF(::WideCharToMultiByte(CP_UTF8, 0, view_.data(), static_cast<int>(view_.size()),
                                                    retval.data(), size, nullptr, nullptr) <= 0,
-        "wstring_view failed to convert to string");
+                             "wstring_view failed to convert to string");
     return retval;
 }
 
-std::wstring to_wide(const std::string_view view_)
+std::string to_utf8(const wchar_t* text_) { return text_ && text_[0] != L'\0' ? to_utf8_view(text_) : std::string{}; }
+
+std::wstring to_wide_view(const std::string_view view_)
 {
     const auto size = ::MultiByteToWideChar(CP_UTF8, 0, view_.data(), static_cast<int>(view_.size()), nullptr, 0);
     if (size < 1)
@@ -51,21 +54,96 @@ std::wstring to_wide(const std::string_view view_)
     return retval;
 }
 
-DnsRecordPtr get_results_ex(const wchar_t* name_, WORD type_)
+std::wstring to_wide(const char* text_) { return text_ && text_[0] != '\0' ? to_wide_view(text_) : std::wstring{}; }
+
+using DnsAddrArrayPtr = std::unique_ptr<DNS_ADDR_ARRAY, nstl::free_deleter>;
+
+class sockaddr_writer
+{
+    using max_sockaddr_buf = CHAR[DNS_ADDR_MAX_SOCKADDR_LENGTH];
+
+    max_sockaddr_buf& _tgt;
+    std::uint16_t _port;
+
+    template <class SockAddr> void _write(const SockAddr& sa_) const
+    {
+        std::memset(_tgt, 0, sizeof(max_sockaddr_buf));
+        std::memcpy(_tgt, &sa_, sizeof(SockAddr));
+    }
+
+public:
+    explicit sockaddr_writer(max_sockaddr_buf& tgt_, std::uint16_t port_ = 0)
+        : _tgt{ tgt_ }, _port{ port_ }
+    {
+        static_assert(sizeof(max_sockaddr_buf) >= sizeof(SOCKADDR_IN6), "MaxSa too small for SOCKADDR_IN6");
+        static_assert(sizeof(ipv4_addr{}) == sizeof(IN_ADDR), "ipv4_addr size mismatch");
+        static_assert(sizeof(ipv6_addr{}) == sizeof(IN6_ADDR), "ipv6_addr size mismatch");
+    }
+
+    void operator()(const ipv4_addr& ip_) const
+    {
+        SOCKADDR_IN sa;
+        std::memset(&sa, 0, sizeof(SOCKADDR_IN));
+        sa.sin_family = AF_INET;
+        sa.sin_port = htons(_port);
+        std::memcpy(&sa.sin_addr, ip_.data(), ip_.size());
+        _write(sa);
+    }
+
+    void operator()(const ipv6_addr& ip_) const
+    {
+        SOCKADDR_IN6 sa6;
+        std::memset(&sa6, 0, sizeof(SOCKADDR_IN6));
+        sa6.sin6_family = AF_INET6;
+        sa6.sin6_port = htons(_port);
+        std::memcpy(&sa6.sin6_addr, ip_.data(), ip_.size());
+        _write(sa6);
+    }
+};
+
+DnsAddrArrayPtr make_addr_array(const std::vector<ip_addr_gen>& servers_)
+{
+    const size_t bytes = sizeof(DNS_ADDR_ARRAY) + (servers_.size() - 1) * sizeof(DNS_ADDR);
+    DnsAddrArrayPtr arr{ static_cast<DNS_ADDR_ARRAY*>(std::calloc(1, bytes)) };
+    if (!arr) [[unlikely]]
+    {
+        throw std::bad_alloc{};
+    }
+    arr->MaxCount = arr->AddrCount = static_cast<DWORD>(servers_.size());
+    arr->Family = AF_UNSPEC;
+    for (size_t i = 0; i < servers_.size(); ++i)
+    {
+        std::visit(sockaddr_writer{ arr->AddrArray[i].MaxSa }, servers_[i]);
+    }
+    return arr;
+}
+
+DnsRecordPtr get_results_ex(const wchar_t* name_, WORD type_, observer_ptr<const dns_config> config_)
 {
     NSTL2_THROW_EXCEPTION_IF(!name_, "name_ cannot be nullptr");
-    DNS_QUERY_REQUEST3 request;
-    std::memset(&request, 0, sizeof(DNS_QUERY_REQUEST3));
-    request.Version = DNS_QUERY_REQUEST_VERSION3;
+    DNS_QUERY_REQUEST request;
+    std::memset(&request, 0, sizeof(DNS_QUERY_REQUEST));
+    request.Version = DNS_QUERY_REQUEST_VERSION1;
     request.QueryName = name_;
     request.QueryType = type_;
-    request.QueryOptions = DNS_QUERY_STANDARD | DNS_QUERY_PARSE_ALL_RECORDS;
+    request.QueryOptions = DNS_QUERY_STANDARD;
+    if (type_ == DNS_TYPE_SVCB || type_ == DNS_TYPE_HTTPS)
+    {
+        request.QueryOptions |= DNS_QUERY_PARSE_ALL_RECORDS;
+    }
+
+    DnsAddrArrayPtr servers;
+    if (config_ && !config_->dns_servers.empty())
+    {
+        servers = make_addr_array(config_->dns_servers);
+        request.pDnsServerList = servers.get();
+    }
 
     DNS_QUERY_RESULT result;
     std::memset(&result, 0, sizeof(DNS_QUERY_RESULT));
     result.Version = DNS_QUERY_RESULTS_VERSION1;
-    const DNS_STATUS status = ::DnsQueryEx(reinterpret_cast<PDNS_QUERY_REQUEST>(&request), &result, nullptr);
-    DnsRecordPtr retval{ std::exchange(result.pQueryRecords, nullptr) };
+    const DNS_STATUS status = ::DnsQueryEx(&request, &result, nullptr);
+    DnsRecordPtr retval{ reinterpret_cast<DNS_RECORDW*>(std::exchange(result.pQueryRecords, nullptr)) };
     if (status)
     {
         return nullptr;
@@ -73,31 +151,17 @@ DnsRecordPtr get_results_ex(const wchar_t* name_, WORD type_)
     return retval;
 }
 
-DnsRecordPtr get_results_ex(const std::string_view name_, WORD type_)
+DnsRecordPtr get_results_ex(const std::string_view name_, WORD type_, observer_ptr<const dns_config> cfg_)
 {
     NSTL2_THROW_EXCEPTION_IF(name_.empty(), "empty / nullptr cannot be resolved");
-    const auto wide_name = to_wide(name_);
-    return get_results_ex(wide_name.c_str(), type_);
+    const auto wide_name = to_wide_view(name_);
+    return get_results_ex(wide_name.c_str(), type_, cfg_);
 }
-
-DnsRecordPtr get_results(const std::string_view name_, WORD type_)
-{
-    const auto name = detail::stack_name(name_);
-    PDNS_RECORDA result = nullptr;
-    const DNS_STATUS status = ::DnsQuery_UTF8(name.data(), type_, DNS_QUERY_STANDARD, nullptr, &result, nullptr);
-    DnsRecordPtr retval{ std::exchange(result, nullptr) };
-    if (status)
-    {
-        return nullptr;
-    }
-    return retval;
-}
-
 } // namespace
 
-std::optional<std::vector<ipv4_addr>> ip_a_name(const std::string_view name_)
+std::optional<std::vector<ipv4_addr>> ip_a_name(const std::string_view name_, observer_ptr<const dns_config> cfg_)
 {
-    const auto results = get_results(name_, DNS_TYPE_A);
+    const auto results = get_results_ex(name_, DNS_TYPE_A, cfg_);
 
     std::optional<std::vector<ipv4_addr>> retval;
 
@@ -119,9 +183,9 @@ std::optional<std::vector<ipv4_addr>> ip_a_name(const std::string_view name_)
     return retval;
 }
 
-std::optional<std::vector<ipv6_addr>> ip_aaaa_name(const std::string_view name_)
+std::optional<std::vector<ipv6_addr>> ip_aaaa_name(const std::string_view name_, observer_ptr<const dns_config> cfg_)
 {
-    const auto results = get_results(name_, DNS_TYPE_AAAA);
+    const auto results = get_results_ex(name_, DNS_TYPE_AAAA, cfg_);
 
     std::optional<std::vector<ipv6_addr>> retval;
 
@@ -143,9 +207,9 @@ std::optional<std::vector<ipv6_addr>> ip_aaaa_name(const std::string_view name_)
     return retval;
 }
 
-std::optional<std::vector<mx_srv>> mx_name(const std::string_view name_)
+std::optional<std::vector<mx_srv>> mx_name(const std::string_view name_, observer_ptr<const dns_config> cfg_)
 {
-    const auto results = get_results(name_, DNS_TYPE_MX);
+    const auto results = get_results_ex(name_, DNS_TYPE_MX, cfg_);
 
     std::optional<std::vector<mx_srv>> retval;
 
@@ -156,7 +220,7 @@ std::optional<std::vector<mx_srv>> mx_name(const std::string_view name_)
             continue;
         }
         const auto& item = ptr->Data.MX;
-        mx_srv value{ .address = std::string{ item.pNameExchange }, .priority = item.wPreference };
+        mx_srv value{ .address = to_utf8(item.pNameExchange), .priority = item.wPreference };
 
         if (!retval.has_value())
         {
@@ -168,9 +232,9 @@ std::optional<std::vector<mx_srv>> mx_name(const std::string_view name_)
     return retval;
 }
 
-std::optional<std::vector<std::string>> txt_name(const std::string_view name_)
+std::optional<std::vector<std::string>> txt_name(const std::string_view name_, observer_ptr<const dns_config> cfg_)
 {
-    const auto results = get_results(name_, DNS_TYPE_TEXT);
+    const auto results = get_results_ex(name_, DNS_TYPE_TEXT, cfg_);
 
     std::optional<std::vector<std::string>> retval;
 
@@ -185,7 +249,7 @@ std::optional<std::vector<std::string>> txt_name(const std::string_view name_)
 
         for (DWORD idx = 0; idx < item.dwStringCount; ++idx)
         {
-            target.append(item.pStringArray[idx]);
+            target.append(to_utf8(item.pStringArray[idx]));
         }
 
         if (!retval.has_value())
@@ -198,9 +262,9 @@ std::optional<std::vector<std::string>> txt_name(const std::string_view name_)
     return retval;
 }
 
-std::optional<std::vector<std::string>> c_name(const std::string_view name_)
+std::optional<std::vector<std::string>> c_name(const std::string_view name_, observer_ptr<const dns_config> cfg_)
 {
-    const auto results = get_results(name_, DNS_TYPE_CNAME);
+    const auto results = get_results_ex(name_, DNS_TYPE_CNAME, cfg_);
 
     std::optional<std::vector<std::string>> retval;
 
@@ -216,15 +280,15 @@ std::optional<std::vector<std::string>> c_name(const std::string_view name_)
         {
             retval.emplace();
         }
-        retval->emplace_back(item.pNameHost);
+        retval->emplace_back(to_utf8(item.pNameHost));
     }
 
     return retval;
 }
 
-std::optional<std::vector<gen_srv>> srv_name(const std::string_view name_)
+std::optional<std::vector<gen_srv>> srv_name(const std::string_view name_, observer_ptr<const dns_config> cfg_)
 {
-    const auto results = get_results(name_, DNS_TYPE_SRV);
+    const auto results = get_results_ex(name_, DNS_TYPE_SRV, cfg_);
 
     std::optional<std::vector<gen_srv>> retval;
 
@@ -235,10 +299,9 @@ std::optional<std::vector<gen_srv>> srv_name(const std::string_view name_)
             continue;
         }
         const auto& item = ptr->Data.SRV;
-        gen_srv value{ .address = std::string{ item.pNameTarget },
-                       .port = item.wPort,
-                       .priority = item.wPriority,
-                       .weight = item.wWeight };
+        gen_srv value{
+            .address = to_utf8(item.pNameTarget), .port = item.wPort, .priority = item.wPriority, .weight = item.wWeight
+        };
 
         if (!retval.has_value())
         {
@@ -301,7 +364,7 @@ std::optional<svcb_param> convert_param(const DNS_SVCB_PARAM& param_)
         return retval;
     case DohPath:
     {
-        std::string doh{param_.pszDohPath};
+        std::string doh{ param_.pszDohPath };
         retval.emplace(std::move(doh));
         return retval;
     }
@@ -366,12 +429,13 @@ WORD get_type_id(const SvcbType type_)
         NSTL2_THROW_EXCEPTION("invalid svcb type");
     }
 }
-}
+} // namespace
 
-std::optional<std::vector<gen_svcb>> svcb_name(const std::string_view name_, const SvcbType type_)
+std::optional<std::vector<gen_svcb>> svcb_name(const std::string_view name_, const SvcbType type_,
+                                               observer_ptr<const dns_config> cfg_)
 {
     const auto dns_type = get_type_id(type_);
-    const auto results = get_results_ex(name_, dns_type);
+    const auto results = get_results_ex(name_, dns_type, cfg_);
 
     std::optional<std::vector<gen_svcb>> retval;
 
@@ -430,7 +494,7 @@ Ipv6Classes classify(const in6_addr& a)
     }
     return Ipv6Classes::Other;
 }
-}
+} // namespace
 
 bool box_have_valid_ipv6()
 {
@@ -443,7 +507,6 @@ bool box_have_valid_ipv6()
         buffer.resize(buff_size);
         rc = GetAdaptersAddresses(AF_INET6, GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER,
                                   nullptr, reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data()), &buff_size);
-
     }
     if (rc == ERROR_NO_DATA)
     {

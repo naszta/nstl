@@ -1,5 +1,6 @@
 #include <nstl/parse.hpp>
 #include <nstl/macros.hpp>
+#include <nstl/memory.hpp>
 #include <nstl/secure_string.hpp>
 #include <nstl/scope_exit.hpp>
 #include <nstl/version.hpp>
@@ -44,12 +45,7 @@ BOOL WINAPI ConsoleHandler(DWORD signal)
     }
 }
 
-struct free_deleter
-{
-    void operator()(void* ptr_) const { std::free(ptr_); }
-};
-
-std::unique_ptr<char, free_deleter> command_line(int argc_, char** argv_)
+std::unique_ptr<char, nstl::free_deleter> command_line(int argc_, char** argv_)
 {
     std::ostringstream oss;
     oss << argv_[0];
@@ -63,13 +59,13 @@ std::unique_ptr<char, free_deleter> command_line(int argc_, char** argv_)
     {
         throw std::bad_alloc{};
     }
-    std::unique_ptr<char, free_deleter> retval{ std::exchange(ptr, nullptr) };
+    std::unique_ptr<char, nstl::free_deleter> retval{ std::exchange(ptr, nullptr) };
     std::strncpy(retval.get(), line_view.data(), line_view.size());
     *(retval.get() + line_view.size()) = '\0';
     return retval;
 }
 
-std::unique_ptr<void, free_deleter> env_vars(char** envv_, const std::uint32_t idx_, const std::uint32_t threads_)
+std::unique_ptr<void, nstl::free_deleter> env_vars(char** envv_, const std::uint32_t idx_, const std::uint32_t threads_)
 {
     std::vector<char> buffer;
     buffer.reserve(1024);
@@ -94,7 +90,7 @@ std::unique_ptr<void, free_deleter> env_vars(char** envv_, const std::uint32_t i
     {
         throw std::bad_alloc{};
     }
-    std::unique_ptr<void, free_deleter> retval{ std::exchange(ptr, nullptr) };
+    std::unique_ptr<void, nstl::free_deleter> retval{ std::exchange(ptr, nullptr) };
     std::memcpy(retval.get(), buffer.data(), buffer.size());
     return retval;
 }

@@ -138,6 +138,11 @@ inline constexpr bool operator>=(const observer_ptr<Type1> a, const observer_ptr
 
 template <class Type> using leaking_ptr = observer_ptr<Type>;
 
+struct free_deleter
+{
+    void operator()(void* ptr_) const { std::free(ptr_); }
+};
+
 } // namespace nstl
 
 namespace std

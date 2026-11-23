@@ -191,8 +191,6 @@ struct ip_range_less
     bool operator()(const ip_addr_gen& l_, const ip_range_gen& r_) const;
     bool operator()(const ip_range_gen& l_, const ip_range_gen& r_) const;
 };
-
-bool box_have_valid_ipv6();
 } // namespace nstl::net
 
 #endif

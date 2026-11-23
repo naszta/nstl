@@ -8,6 +8,9 @@
 #include <arpa/nameser.h>
 #include <resolv.h>
 
+#include <ifaddrs.h>
+#include <net/if.h>
+
 #include <array>
 #include <functional>
 #include <cstring>
@@ -191,6 +194,38 @@ public:
     ~DnsClient() { res_nclose(&_state); }
     DnsClient(const DnsClient&) = delete;
     DnsClient& operator=(const DnsClient&) = delete;
+
+    template <size_t ip_size, int tgt_type>
+    std::optional<std::vector<ip_addr_base<ip_size>>> ip_ip_name_t(const char* name_)
+    {
+        std::optional<std::vector<ip_addr_base<ip_size>>> retval;
+
+        return this->_process_item(name_, tgt_type,
+                                   [&retval](ns_msg& message, const int count)
+                                   {
+                                       for (int idx = 0; idx < count; ++idx)
+                                       {
+                                           ns_rr raw_record;
+                                           if (ns_parserr(&message, ns_s_an, idx, &raw_record) < 0)
+                                           {
+                                               continue;
+                                           }
+                                           // message is A/AAAA
+                                           if (ns_rr_class(raw_record) == ns_c_in &&
+                                               ns_rr_type(raw_record) == tgt_type && ns_rr_rdlen(raw_record) == ip_size)
+                                           {
+                                               if (!retval.has_value())
+                                               {
+                                                   retval.emplace();
+                                               }
+                                               ip_addr_base<ip_size>& target = retval->emplace_back();
+                                               std::memcpy(target.data(), ns_rr_rdata(raw_record), ip_size);
+                                           }
+                                       }
+                                   })
+                   ? retval
+                   : std::nullopt;
+    }
 
     std::optional<std::vector<mx_srv>> mx_name(const char* name_)
     {
@@ -457,6 +492,18 @@ public:
 
 } // namespace
 
+std::optional<std::vector<ipv4_addr>> ip_a_name(const std::string_view name_)
+{
+    const auto name = detail::stack_name(name_);
+    return DnsClient::instance().ip_ip_name_t<ipv4_size, ns_t_a>(name.data());
+}
+
+std::optional<std::vector<ipv6_addr>> ip_aaaa_name(const std::string_view name_)
+{
+    const auto name = detail::stack_name(name_);
+    return DnsClient::instance().ip_ip_name_t<ipv6_size, ns_t_aaaa>(name.data());
+}
+
 std::optional<std::vector<mx_srv>> mx_name(const std::string_view name_)
 {
     const auto name = detail::stack_name(name_);
@@ -486,4 +533,77 @@ std::optional<std::vector<gen_svcb>> svcb_name(const std::string_view name_, con
     const auto name = detail::stack_name(name_);
     return DnsClient::instance().svcb_name(name.data(), type_);
 }
+
+namespace
+{
+enum class Ipv6Classes
+{
+    Loopback,
+    LinkLocal,
+    ULA,
+    V4Mapped,
+    Teredo,
+    Global,
+    Other,
+};
+
+Ipv6Classes classify(const in6_addr& a)
+{
+    if (IN6_IS_ADDR_LOOPBACK(&a))
+    {
+        return Ipv6Classes::Loopback;
+    }
+    if (IN6_IS_ADDR_LINKLOCAL(&a))
+    {
+        return Ipv6Classes::LinkLocal;
+    }
+    if (IN6_IS_ADDR_V4MAPPED(&a))
+    {
+        return Ipv6Classes::V4Mapped;
+    }
+    if ((a.s6_addr[0] & 0xfe) == 0xfc)
+    {
+        return Ipv6Classes::ULA;
+    }
+    if (a.s6_addr[0] == 0x20 && a.s6_addr[1] == 0x01 && a.s6_addr[2] == 0 && a.s6_addr[3] == 0)
+    {
+        return Ipv6Classes::Teredo;
+    }
+    if ((a.s6_addr[0] & 0xe0) == 0x20)
+    {
+        return Ipv6Classes::Global;
+    }
+    return Ipv6Classes::Other;
+}
+
+} // namespace
+
+bool box_have_valid_ipv6()
+{
+    ifaddrs* list = nullptr;
+    NSTL2_THROW_EXCEPTION_IF(::getifaddrs(&list) != 0, "Network cannot be resolved");
+    const auto list_cleanup = on_scope_exit([list]() { ::freeifaddrs(list); });
+
+    for (auto it = list; it; it = it->ifa_next)
+    {
+        if (!it->ifa_addr || it->ifa_addr->sa_family != AF_INET6)
+        {
+            continue;
+        }
+        if (!(it->ifa_flags & IFF_UP))
+        {
+            continue;
+        }
+
+        const auto* sin6 = reinterpret_cast<const sockaddr_in6*>(it->ifa_addr);
+        const auto kind = classify(sin6->sin6_addr);
+        if (kind == Ipv6Classes::Global)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 } // namespace nstl::net

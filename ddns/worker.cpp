@@ -50,22 +50,34 @@ rule_applier applier_factory(const bool dry_run_)
 }
 } // namespace
 
-worker::worker(configs configs_, const bool dry_run_) : worker{ std::move(configs_), applier_factory(dry_run_) } {}
-
-worker::worker(configs configs_, rule_applier applier_)
-    : _configs{ std::move(configs_) }, _applier{ std::move(applier_) }, _cache{64}, _regular_log{ std::chrono::steady_clock::now() }
+worker::worker(configs configs_, custom_dns cdns_, const bool dry_run_)
+    : worker{ std::move(configs_), std::move(cdns_), applier_factory(dry_run_) }
 {
+}
+
+worker::worker(configs configs_, custom_dns cdns_, rule_applier applier_)
+    : _configs{ std::move(configs_) }
+    , _applier{ std::move(applier_) }
+    , _cache{64}
+    , _regular_log{ std::chrono::steady_clock::now() }
+{
+    if (!cdns_.empty())
+    {
+        _cfg = std::make_shared<net::dns_config>(std::move(cdns_));
+    }
+
     NSTL2_THROW_EXCEPTION_IF(!_applier, "rule applier is empty");
 }
 
-void worker::names_item::check_item(const std::string& name_, const config& cfg_, const rule_applier& apply_)
+void worker::names_item::check_item(const std::string& name_, const config& cfg_, const rule_applier& apply_,
+                                    observer_ptr<const net::dns_config> dns_cfg_)
 {
     try
     {
         other.clear();
         for (const auto& name : cfg_.ddns_names)
         {
-            if (const auto ip_addresses = nstl::net::ips_name(name, cfg_.ip_class))
+            if (const auto ip_addresses = nstl::net::ips_name(name, cfg_.ip_class, dns_cfg_))
             {
                 for (const auto& item : ip_addresses.value())
                 {
@@ -108,7 +120,7 @@ void worker::_check_items()
         {
             named_addresses::accessor accessor;
             _cache.insert(accessor, name);
-            accessor->second.check_item(name, config, _applier);
+            accessor->second.check_item(name, config, _applier, _cfg);
         }
     }
 }

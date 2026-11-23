@@ -12,6 +12,7 @@
 
 using nstl::ddns::config;
 using nstl::ddns::configs;
+using nstl::ddns::custom_dns;
 using nstl::ddns::parse_file;
 using nstl::ddns::parse_payload;
 using nstl::net::IpClass;
@@ -179,7 +180,8 @@ TEST(DdnsConfig, RangeIpv4)
         const config cfg{ src };
         EXPECT_EQ(cfg.range, bits);
         ASSERT_TRUE(std::holds_alternative<nstl::net::ipv4_addr>(cfg.mask)) << bits;
-        EXPECT_EQ(std::get<nstl::net::ipv4_addr>(cfg.mask), nstl::net::create_ipv4_mask(static_cast<std::uint8_t>(bits)))
+        EXPECT_EQ(std::get<nstl::net::ipv4_addr>(cfg.mask),
+                  nstl::net::create_ipv4_mask(static_cast<std::uint8_t>(bits)))
             << bits;
     }
 }
@@ -192,7 +194,8 @@ TEST(DdnsConfig, RangeIpv6)
         const config cfg{ src };
         EXPECT_EQ(cfg.range, bits);
         ASSERT_TRUE(std::holds_alternative<nstl::net::ipv6_addr>(cfg.mask)) << bits;
-        EXPECT_EQ(std::get<nstl::net::ipv6_addr>(cfg.mask), nstl::net::create_ipv6_mask(static_cast<std::uint8_t>(bits)))
+        EXPECT_EQ(std::get<nstl::net::ipv6_addr>(cfg.mask),
+                  nstl::net::create_ipv6_mask(static_cast<std::uint8_t>(bits)))
             << bits;
     }
 }
@@ -299,24 +302,26 @@ TEST(DdnsConfig, ApplyMaskFamilyMismatchThrows)
 
 namespace
 {
-constexpr std::string_view sample_payload = R"({
+constexpr std::string_view sample_payload = R"({ "items": {
     "home": { "table": "inet filter", "type": "ip4", "ddns": "home.example.com" },
     "office": { "table": "inet filter", "type": 6, "ddns": ["a.example.com", "b.example.com"], "range": 64, "enabled": false }
+}
 })";
 
-void check_sample(const configs& cfgs_)
+void check_sample(const std::pair<configs, custom_dns>& cfgs_)
 {
-    ASSERT_EQ(cfgs_.size(), 2u);
-    const auto home = cfgs_.find("home");
-    ASSERT_NE(home, cfgs_.end());
+    const auto& cfgs = cfgs_.first;
+    ASSERT_EQ(cfgs.size(), 2u);
+    const auto home = cfgs.find("home");
+    ASSERT_NE(home, cfgs.end());
     EXPECT_EQ(home->second.table, "inet filter");
     EXPECT_EQ(home->second.ip_class, IpClass::Ipv4);
     EXPECT_EQ(home->second.ddns_names, std::vector<std::string>{ "home.example.com" });
     EXPECT_TRUE(home->second.enabled);
     EXPECT_TRUE(std::holds_alternative<std::monostate>(home->second.mask));
 
-    const auto office = cfgs_.find("office");
-    ASSERT_NE(office, cfgs_.end());
+    const auto office = cfgs.find("office");
+    ASSERT_NE(office, cfgs.end());
     EXPECT_EQ(office->second.ip_class, IpClass::Ipv6);
     EXPECT_EQ(office->second.ddns_names.size(), 2u);
     EXPECT_EQ(office->second.range, 64);
@@ -328,7 +333,7 @@ TEST(DdnsParse, PayloadString) { check_sample(parse_payload(sample_payload)); }
 
 TEST(DdnsParse, PayloadJson) { check_sample(parse_payload(nlohmann::json::parse(sample_payload))); }
 
-TEST(DdnsParse, EmptyObject) { EXPECT_TRUE(parse_payload(std::string_view{ "{}" }).empty()); }
+TEST(DdnsParse, EmptyObject) { EXPECT_TRUE(parse_payload(std::string_view{ "{}" }).first.empty()); }
 
 TEST(DdnsParse, NotAnObject)
 {
@@ -345,19 +350,20 @@ TEST(DdnsParse, MalformedJson)
 TEST(DdnsParse, InvalidEntryRejected)
 {
     // missing ddns
-    EXPECT_THROW(parse_payload(std::string_view{ R"({"x":{"table":"t"}})" }), nstl::exception);
+    EXPECT_THROW(parse_payload(std::string_view{ R"({"items":{"x":{"table":"t"}}})" }), nstl::exception);
     // missing table
-    EXPECT_THROW(parse_payload(std::string_view{ R"({"x":{"ddns":"a"}})" }), nstl::exception);
+    EXPECT_THROW(parse_payload(std::string_view{ R"({"items":{"x":{"ddns":"a"}}})" }), nstl::exception);
     // entry not an object
-    EXPECT_THROW(parse_payload(std::string_view{ R"({"x":"y"})" }), nstl::exception);
+    EXPECT_THROW(parse_payload(std::string_view{ R"({"items":{"x":"y"}})" }), nstl::exception);
     // nested field error propagates
-    EXPECT_THROW(parse_payload(std::string_view{ R"({"x":{"table":"t","ddns":"a","type":"ip9"}})" }),
+    EXPECT_THROW(parse_payload(std::string_view{ R"({"items":{"x":{"table":"t","ddns":"a","type":"ip9"}}})" }),
                  nstl::exception);
 }
 
 TEST(DdnsParse, DisabledEntryStillValidated)
 {
-    EXPECT_THROW(parse_payload(std::string_view{ R"({"x":{"table":"t","enabled":false}})" }), nstl::exception);
+    EXPECT_THROW(parse_payload(std::string_view{ R"({"items":{"x":{"table":"t","enabled":false}}})" }),
+                 nstl::exception);
 }
 
 TEST(DdnsParse, File)

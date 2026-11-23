@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nstl/ip_tools.hpp>
 #include <nstl/dns_tools.hpp>
 
 #include <nlohmann/json_fwd.hpp>
@@ -9,11 +10,14 @@
 #include <filesystem>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 
 namespace nstl::ddns
 {
+using custom_dns = std::vector<net::ip_addr_gen>;
+
 struct config
 {
     config();
@@ -33,8 +37,8 @@ struct config
 
 using configs = boost::container::flat_map<std::string, config, std::less<>>;
 
-configs parse_file(const std::filesystem::path& filepath_);
-configs parse_payload(std::string_view payload_);
-configs parse_payload(const nlohmann::json& src_);
+std::pair<configs, custom_dns> parse_file(const std::filesystem::path& filepath_);
+std::pair<configs, custom_dns> parse_payload(std::string_view payload_);
+std::pair<configs, custom_dns> parse_payload(const nlohmann::json& src_);
 
 } // namespace nstl::ddns

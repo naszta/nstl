@@ -126,31 +126,66 @@ void config::reset()
 
 bool config::valid() const { return !this->table.empty() && !this->ddns_names.empty(); }
 
-configs parse_file(const std::filesystem::path& filepath_)
+std::pair<configs, custom_dns> parse_file(const std::filesystem::path& filepath_)
 {
     std::ifstream file{ filepath_ };
     const auto payload = nlohmann::json::parse(file);
     return parse_payload(payload);
 }
 
-configs parse_payload(std::string_view payload_)
+std::pair<configs, custom_dns> parse_payload(std::string_view payload_)
 {
     const auto payload = nlohmann::json::parse(payload_);
     return parse_payload(payload);
 }
 
-configs parse_payload(const nlohmann::json& src_)
+namespace
+{
+
+struct ip_push_visitor
+{
+    custom_dns& target;
+
+    explicit ip_push_visitor(custom_dns& target_) : target{ target_ } {}
+
+    void operator()(const std::monostate&) const { NSTL2_THROW_EXCEPTION("dns contains invalid IP address"); }
+
+    void operator()(const net::ipv4_addr& ip_) const { target.push_back(ip_); }
+
+    void operator()(const net::ipv6_addr& ip_) const { target.push_back(ip_); }
+};
+} // namespace
+
+std::pair<configs, custom_dns> parse_payload(const nlohmann::json& src_)
 {
     NSTL2_THROW_EXCEPTION_IF(!src_.is_object(), "json expected to be object");
-    configs retval;
-    retval.reserve(src_.size());
-    for (auto itr = src_.begin(); itr != src_.end(); ++itr)
+    custom_dns servers;
+    configs items;
+    if (const auto ditr = src_.find("dns"); ditr != src_.end())
     {
-        const auto helper = retval.try_emplace(itr.key(), itr.value());
-        NSTL2_THROW_EXCEPTION_IF(!helper.second, itr.key() << " duplicated");
-        NSTL2_THROW_EXCEPTION_IF(!helper.first->second.valid(), itr.key() << " is not valid");
+        NSTL2_THROW_EXCEPTION_IF(!ditr->is_array(), "dns expected to be array");
+        const ip_push_visitor visitor{ servers };
+
+        for (auto sitr = ditr->cbegin(); sitr != ditr->cend(); ++sitr)
+        {
+            NSTL2_THROW_EXCEPTION_IF(!sitr->is_string(), "dns items expected to be string");
+            const auto ip_opt = net::parse_ip_address(sitr->get_ref<const std::string&>());
+            std::visit(visitor, ip_opt);
+        }
     }
-    return retval;
+
+    if (const auto iitr = src_.find("items"); iitr != src_.end())
+    {
+        NSTL2_THROW_EXCEPTION_IF(!iitr->is_object(), "items expected to be object");
+        items.reserve(iitr->size());
+        for (auto itr = iitr->begin(); itr != iitr->end(); ++itr)
+        {
+            const auto helper = items.try_emplace(itr.key(), itr.value());
+            NSTL2_THROW_EXCEPTION_IF(!helper.second, itr.key() << " duplicated");
+            NSTL2_THROW_EXCEPTION_IF(!helper.first->second.valid(), itr.key() << " is not valid");
+        }
+    }
+    return std::make_pair(std::move(items), std::move(servers));
 }
 
 namespace

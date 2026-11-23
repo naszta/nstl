@@ -2,6 +2,7 @@
 #define _NSTL_DNS_TOOLS 1
 
 #include <nstl/ip_tools.hpp>
+#include <nstl/memory.hpp>
 
 #include <array>
 #include <iosfwd>
@@ -18,6 +19,11 @@ constexpr int max_host_size = 256;
 std::array<char, max_host_size> stack_name(std::string_view name_);
 } // namespace detail
 
+struct dns_config
+{
+    std::vector<ip_addr_gen> dns_servers;
+};
+
 std::string hostname();
 std::optional<std::string> canonical_name(std::string_view name_);
 
@@ -28,9 +34,10 @@ enum class IpClass
     IpvAll = 3,
 };
 
-std::optional<std::vector<ipv4_addr>> ip_a_name(std::string_view name_);
-std::optional<std::vector<ipv6_addr>> ip_aaaa_name(std::string_view name_);
-std::optional<std::vector<ip_addr_gen>> ips_name(std::string_view name_, IpClass class_ = IpClass::IpvAll);
+std::optional<std::vector<ipv4_addr>> ip_a_name(std::string_view name_, observer_ptr<const dns_config> cfg_ = nullptr);
+std::optional<std::vector<ipv6_addr>> ip_aaaa_name(std::string_view name_, observer_ptr<const dns_config> cfg_ = nullptr);
+std::optional<std::vector<ip_addr_gen>> ips_name(std::string_view name_, IpClass class_ = IpClass::IpvAll,
+                                                 observer_ptr<const dns_config> cfg_ = nullptr);
 std::optional<std::vector<ip_addr_gen>> ips_name_libc(std::string_view name_, IpClass class_ = IpClass::IpvAll);
 
 struct mx_srv
@@ -39,9 +46,9 @@ struct mx_srv
     std::uint16_t priority{ 0 };
 };
 
-std::optional<std::vector<mx_srv>> mx_name(std::string_view name_);
-std::optional<std::vector<std::string>> txt_name(std::string_view name_);
-std::optional<std::vector<std::string>> c_name(std::string_view name_);
+std::optional<std::vector<mx_srv>> mx_name(std::string_view name_, observer_ptr<const dns_config> cfg_ = nullptr);
+std::optional<std::vector<std::string>> txt_name(std::string_view name_, observer_ptr<const dns_config> cfg_ = nullptr);
+std::optional<std::vector<std::string>> c_name(std::string_view name_, observer_ptr<const dns_config> cfg_ = nullptr);
 
 struct gen_srv
 {
@@ -51,7 +58,7 @@ struct gen_srv
     std::uint16_t weight{ 0 };
 };
 
-std::optional<std::vector<gen_srv>> srv_name(std::string_view name_);
+std::optional<std::vector<gen_srv>> srv_name(std::string_view name_, observer_ptr<const dns_config> cfg_ = nullptr);
 
 using svcb_param = std::variant<std::monostate,             // no default alpn
                                 std::vector<std::uint16_t>, // mandatory keys
@@ -77,7 +84,9 @@ enum class SvcbType : std::uint16_t
     Https = 65,
 };
 
-std::optional<std::vector<gen_svcb>> svcb_name(std::string_view name_, SvcbType type_ = SvcbType::Svcb);
+std::optional<std::vector<gen_svcb>> svcb_name(std::string_view name_, SvcbType type_ = SvcbType::Svcb,
+                                               observer_ptr<const dns_config> cfg_ = nullptr);
+bool box_have_valid_ipv6();
 } // namespace nstl::net
 
 #endif

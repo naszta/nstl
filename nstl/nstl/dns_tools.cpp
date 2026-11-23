@@ -87,12 +87,13 @@ std::optional<std::string> canonical_name(const std::string_view name_)
     return retval;
 }
 
-std::optional<std::vector<ip_addr_gen>> ips_name(const std::string_view name_, const IpClass class_)
+std::optional<std::vector<ip_addr_gen>> ips_name(const std::string_view name_, const IpClass class_,
+                                                 observer_ptr<const dns_config> cfg_)
 {
     std::optional<std::vector<ip_addr_gen>> retval;
     if (class_ == IpClass::Ipv4 || class_ == IpClass::IpvAll)
     {
-        if (const auto addresses = ip_a_name(name_))
+        if (const auto addresses = ip_a_name(name_, cfg_))
         {
             retval.emplace();
             retval->reserve(addresses->size());
@@ -104,7 +105,7 @@ std::optional<std::vector<ip_addr_gen>> ips_name(const std::string_view name_, c
     }
     if (class_ == IpClass::Ipv6 || class_ == IpClass::IpvAll)
     {
-        if (const auto addresses = ip_aaaa_name(name_))
+        if (const auto addresses = ip_aaaa_name(name_, cfg_))
         {
             if (!retval.has_value())
             {

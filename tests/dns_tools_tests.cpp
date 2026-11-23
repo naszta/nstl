@@ -167,3 +167,11 @@ TEST(DnsTools, AandAAACheck)
         ADD_FAILURE() << "A: " << side_a_str.view() << " vs. B: " << side_b_str.view();
     }
 }
+
+TEST(DnsTools, CustomDNSTest)
+{
+    nstl::net::dns_config config;
+    config.dns_servers.push_back(nstl::net::parse_ip4_address("1.1.1.1").value());
+    const auto ip_opt_a = nstl::net::ips_name("naszta.hu", nstl::net::IpClass::IpvAll, nstl::make_observer(&config));
+    EXPECT_TRUE(ip_opt_a.has_value());
+}

@@ -1,5 +1,6 @@
 #include "dns_tools.hpp"
 #include "exception.hpp"
+#include "memory.hpp"
 #include "scope_exit.hpp"
 
 #include <stdexcept>
@@ -14,9 +15,14 @@
 #include <array>
 #include <functional>
 #include <cstring>
+#include <utility>
 #include <vector>
 
 #include <string.h>
+
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+#define NSTL_RES_HAS_SETSERVERS 1
+#endif
 
 namespace nstl::net
 {
@@ -142,19 +148,145 @@ std::vector<svcb_param> resolve_params(const uint8_t* p, const uint8_t* end)
     return retval;
 }
 
+constexpr std::uint16_t dns_port = 53;
+
+#ifdef NSTL_RES_HAS_SETSERVERS
+
+struct sockaddr_union_visitor
+{
+    union res_sockaddr_union& _tgt;
+    std::uint16_t _port{ dns_port };
+
+    void operator()(const ipv4_addr& ip_) const
+    {
+        auto& sin = _tgt.sin;
+        sin.sin_len = sizeof(sin);
+        sin.sin_family = AF_INET;
+        sin.sin_port = htons(_port);
+        std::memcpy(&sin.sin_addr, ip_.data(), ip_.size());
+    }
+
+    void operator()(const ipv6_addr& ip_) const
+    {
+        auto& sin6 = _tgt.sin6;
+        sin6.sin6_len = sizeof(sin6);
+        sin6.sin6_family = AF_INET6;
+        sin6.sin6_port = htons(_port);
+        std::memcpy(&sin6.sin6_addr, ip_.data(), ip_.size());
+    }
+};
+
+#else
+
+struct state_dns_visitor
+{
+    struct __res_state& _state;
+    std::uint16_t _port;
+    size_t _idx;
+
+    state_dns_visitor(struct __res_state& state_, size_t idx_, std::uint16_t port_ = dns_port)
+        : _state{ state_ }, _port{ port_ }, _idx{ idx_ }
+    {
+    }
+
+    void operator()(const ipv4_addr& ip_) const
+    {
+        auto& tgt4 = _state.nsaddr_list[_idx];
+        tgt4.sin_family = AF_INET;
+        tgt4.sin_port = htons(_port);
+        std::memcpy(&tgt4.sin_addr, ip_.data(), ip_.size());
+    }
+
+    void operator()(const ipv6_addr& ip_) const
+    {
+        std::unique_ptr<struct sockaddr_in6, free_deleter> sa6{ reinterpret_cast<struct sockaddr_in6*>(
+            std::malloc(sizeof(sockaddr_in6))) };
+        std::memset(sa6.get(), 0, sizeof(sockaddr_in6));
+        sa6->sin6_family = AF_INET6;
+        sa6->sin6_port = htons(_port);
+        std::memcpy(&sa6->sin6_addr, ip_.data(), ip_.size());
+
+        auto& tgt4 = _state.nsaddr_list[_idx];
+        tgt4.sin_family = 0;
+
+        auto raw_ptr = std::exchange(_state._u._ext.nsaddrs[_idx], sa6.release());
+        sa6.reset(raw_ptr);
+    }
+};
+#endif
+
+class state_manager
+{
+    struct __res_state _state;
+
+public:
+    state_manager()
+    {
+        std::memset(&_state, 0, sizeof(struct __res_state));
+        NSTL2_THROW_EXCEPTION_IF(res_ninit(&_state) < 0, "Resolver initialize failed");
+    }
+    ~state_manager()
+    {
+#ifdef NSTL_RES_HAS_SETSERVERS
+        res_ndestroy(&_state);
+#else
+        res_nclose(&_state);
+#endif
+    }
+    state_manager(const state_manager&) = delete;
+    state_manager& operator=(const state_manager&) = delete;
+
+    void set_servers(const std::vector<ip_addr_gen>& servers_)
+    {
+        const auto num_of_dns = std::min<size_t>(MAXNS, servers_.size());
+#ifdef NSTL_RES_HAS_SETSERVERS
+        std::array<union res_sockaddr_union, MAXNS> addrs{};
+        for (size_t idx = 0; idx < num_of_dns; ++idx)
+        {
+            std::visit(sockaddr_union_visitor{ addrs[idx], dns_port }, servers_[idx]);
+        }
+        res_setservers(&_state, addrs.data(), static_cast<int>(num_of_dns)); // sets nscount itself
+#else
+        _state.nscount = num_of_dns;
+
+        for (size_t idx = 0; idx < num_of_dns; ++idx)
+        {
+            std::visit(state_dns_visitor{ _state, idx }, servers_[idx]);
+        }
+#endif
+    }
+
+    observer_ptr<const struct __res_state> get() const { return make_observer(&_state); }
+    observer_ptr<struct __res_state> get() { return make_observer(&_state); }
+};
+
+std::pair<observer_ptr<struct __res_state>, std::unique_ptr<state_manager>>
+resolve_state_ctx(state_manager& state_, observer_ptr<const dns_config> cfg_)
+{
+    if (cfg_ && !cfg_->dns_servers.empty())
+    {
+        auto ret_state = std::make_unique<state_manager>();
+        ret_state->set_servers(cfg_->dns_servers);
+        return std::make_pair(ret_state->get(), std::move(ret_state));
+    }
+    return std::make_pair(state_.get(), nullptr);
+}
+
 class DnsClient
 {
     static constexpr size_t buff_size = 4096;
     std::vector<unsigned char> _response;
-    struct __res_state _state;
+    state_manager _state;
 
-    bool _process_item(const char* name_, const int ns_type_,
+    bool _process_item(const char* name_, const int ns_type_, observer_ptr<const dns_config> cfg_,
                        const std::function<void(ns_msg& message, int count)>& func_)
     {
+        const auto [ptr, ctx] = resolve_state_ctx(_state, cfg_);
+
         int length = -1;
         while (length < 0)
         {
-            length = res_nquery(&_state, name_, ns_c_in, ns_type_, _response.data(), _response.size());
+            length = res_nquery(ptr.get(), name_, ns_c_in, ns_type_, _response.data(), _response.size());
             if (length <= 0)
             {
                 return false;
@@ -185,22 +317,15 @@ public:
         return ins;
     }
 
-    DnsClient()
-    {
-        NSTL2_THROW_EXCEPTION_IF(res_ninit(&_state) < 0, "Resolver initialize failed");
-        _response.resize(buff_size);
-    }
-
-    ~DnsClient() { res_nclose(&_state); }
-    DnsClient(const DnsClient&) = delete;
-    DnsClient& operator=(const DnsClient&) = delete;
+    DnsClient() { _response.resize(buff_size); }
 
     template <size_t ip_size, int tgt_type>
-    std::optional<std::vector<ip_addr_base<ip_size>>> ip_ip_name_t(const char* name_)
+    std::optional<std::vector<ip_addr_base<ip_size>>> ip_ip_name_t(const char* name_,
+                                                                   observer_ptr<const dns_config> cfg_)
     {
         std::optional<std::vector<ip_addr_base<ip_size>>> retval;
 
-        return this->_process_item(name_, tgt_type,
+        return this->_process_item(name_, tgt_type, cfg_,
                                    [&retval](ns_msg& message, const int count)
                                    {
                                        for (int idx = 0; idx < count; ++idx)
@@ -227,13 +352,13 @@ public:
                    : std::nullopt;
     }
 
-    std::optional<std::vector<mx_srv>> mx_name(const char* name_)
+    std::optional<std::vector<mx_srv>> mx_name(const char* name_, observer_ptr<const dns_config> cfg_)
     {
         constexpr int tgt_type = ns_t_mx;
         std::optional<std::vector<mx_srv>> retval;
 
         return this->_process_item(
-                   name_, tgt_type,
+                   name_, tgt_type, cfg_,
                    [&retval](ns_msg& message, const int count)
                    {
                        for (int idx = 0; idx < count; ++idx)
@@ -281,12 +406,12 @@ public:
                    : std::nullopt;
     }
 
-    std::optional<std::vector<std::string>> txt_name(const char* name_)
+    std::optional<std::vector<std::string>> txt_name(const char* name_, observer_ptr<const dns_config> cfg_)
     {
         constexpr int tgt_type = ns_t_txt;
         std::optional<std::vector<std::string>> retval;
 
-        return this->_process_item(name_, tgt_type,
+        return this->_process_item(name_, tgt_type, cfg_,
                                    [&retval](ns_msg& message, const int count)
                                    {
                                        for (int idx = 0; idx < count; ++idx)
@@ -336,12 +461,12 @@ public:
                    : std::nullopt;
     }
 
-    std::optional<std::vector<std::string>> c_name(const char* name_)
+    std::optional<std::vector<std::string>> c_name(const char* name_, observer_ptr<const dns_config> cfg_)
     {
         constexpr int tgt_type = ns_t_cname;
         std::optional<std::vector<std::string>> retval;
 
-        return this->_process_item(name_, tgt_type,
+        return this->_process_item(name_, tgt_type, cfg_,
                                    [&retval](ns_msg& message, const int count)
                                    {
                                        for (int idx = 0; idx < count; ++idx)
@@ -378,12 +503,12 @@ public:
                    : std::nullopt;
     }
 
-    std::optional<std::vector<gen_srv>> srv_name(const char* name_)
+    std::optional<std::vector<gen_srv>> srv_name(const char* name_, observer_ptr<const dns_config> cfg_)
     {
         constexpr int tgt_type = ns_t_srv;
         std::optional<std::vector<gen_srv>> retval;
 
-        return this->_process_item(name_, tgt_type,
+        return this->_process_item(name_, tgt_type, cfg_,
                                    [&retval](ns_msg& message, const int count)
                                    {
                                        for (int idx = 0; idx < count; ++idx)
@@ -430,12 +555,13 @@ public:
                    : std::nullopt;
     }
 
-    std::optional<std::vector<gen_svcb>> svcb_name(const char* name_, const SvcbType type_)
+    std::optional<std::vector<gen_svcb>> svcb_name(const char* name_, const SvcbType type_,
+                                                   observer_ptr<const dns_config> cfg_)
     {
         const int tgt_type = static_cast<std::underlying_type_t<SvcbType>>(type_);
         std::optional<std::vector<gen_svcb>> retval;
 
-        return this->_process_item(name_, tgt_type,
+        return this->_process_item(name_, tgt_type, cfg_,
                                    [&retval, tgt_type](ns_msg& message, const int count)
                                    {
                                        for (int idx = 0; idx < count; ++idx)
@@ -492,46 +618,47 @@ public:
 
 } // namespace
 
-std::optional<std::vector<ipv4_addr>> ip_a_name(const std::string_view name_)
+std::optional<std::vector<ipv4_addr>> ip_a_name(const std::string_view name_, observer_ptr<const dns_config> cfg_)
 {
     const auto name = detail::stack_name(name_);
-    return DnsClient::instance().ip_ip_name_t<ipv4_size, ns_t_a>(name.data());
+    return DnsClient::instance().ip_ip_name_t<ipv4_size, ns_t_a>(name.data(), cfg_);
 }
 
-std::optional<std::vector<ipv6_addr>> ip_aaaa_name(const std::string_view name_)
+std::optional<std::vector<ipv6_addr>> ip_aaaa_name(const std::string_view name_, observer_ptr<const dns_config> cfg_)
 {
     const auto name = detail::stack_name(name_);
-    return DnsClient::instance().ip_ip_name_t<ipv6_size, ns_t_aaaa>(name.data());
+    return DnsClient::instance().ip_ip_name_t<ipv6_size, ns_t_aaaa>(name.data(), cfg_);
 }
 
-std::optional<std::vector<mx_srv>> mx_name(const std::string_view name_)
+std::optional<std::vector<mx_srv>> mx_name(const std::string_view name_, observer_ptr<const dns_config> cfg_)
 {
     const auto name = detail::stack_name(name_);
-    return DnsClient::instance().mx_name(name.data());
+    return DnsClient::instance().mx_name(name.data(), cfg_);
 }
 
-std::optional<std::vector<std::string>> txt_name(const std::string_view name_)
+std::optional<std::vector<std::string>> txt_name(const std::string_view name_, observer_ptr<const dns_config> cfg_)
 {
     const auto name = detail::stack_name(name_);
-    return DnsClient::instance().txt_name(name.data());
+    return DnsClient::instance().txt_name(name.data(), cfg_);
 }
 
-std::optional<std::vector<std::string>> c_name(const std::string_view name_)
+std::optional<std::vector<std::string>> c_name(const std::string_view name_, observer_ptr<const dns_config> cfg_)
 {
     const auto name = detail::stack_name(name_);
-    return DnsClient::instance().c_name(name.data());
+    return DnsClient::instance().c_name(name.data(), cfg_);
 }
 
-std::optional<std::vector<gen_srv>> srv_name(const std::string_view name_)
+std::optional<std::vector<gen_srv>> srv_name(const std::string_view name_, observer_ptr<const dns_config> cfg_)
 {
     const auto name = detail::stack_name(name_);
-    return DnsClient::instance().srv_name(name.data());
+    return DnsClient::instance().srv_name(name.data(), cfg_);
 }
 
-std::optional<std::vector<gen_svcb>> svcb_name(const std::string_view name_, const SvcbType type_)
+std::optional<std::vector<gen_svcb>> svcb_name(const std::string_view name_, const SvcbType type_,
+                                               observer_ptr<const dns_config> cfg_)
 {
     const auto name = detail::stack_name(name_);
-    return DnsClient::instance().svcb_name(name.data(), type_);
+    return DnsClient::instance().svcb_name(name.data(), type_, cfg_);
 }
 
 namespace

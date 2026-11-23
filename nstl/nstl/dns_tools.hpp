@@ -6,7 +6,6 @@
 #include <array>
 #include <iosfwd>
 #include <optional>
-#include <span>
 #include <string>
 #include <variant>
 #include <vector>
@@ -17,7 +16,7 @@ namespace detail
 {
 constexpr int max_host_size = 256;
 std::array<char, max_host_size> stack_name(std::string_view name_);
-}
+} // namespace detail
 
 std::string hostname();
 std::optional<std::string> canonical_name(std::string_view name_);
@@ -29,7 +28,10 @@ enum class IpClass
     IpvAll = 3,
 };
 
+std::optional<std::vector<ipv4_addr>> ip_a_name(std::string_view name_);
+std::optional<std::vector<ipv6_addr>> ip_aaaa_name(std::string_view name_);
 std::optional<std::vector<ip_addr_gen>> ips_name(std::string_view name_, IpClass class_ = IpClass::IpvAll);
+std::optional<std::vector<ip_addr_gen>> ips_name_libc(std::string_view name_, IpClass class_ = IpClass::IpvAll);
 
 struct mx_srv
 {

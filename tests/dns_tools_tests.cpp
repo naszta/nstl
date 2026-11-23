@@ -5,6 +5,8 @@
 
 #include <gtest/gtest.h>
 
+#include <set>
+
 TEST(DnsTools, AandAAA)
 {
     const auto ip_opt = nstl::net::ips_name("naszta.hu");
@@ -127,5 +129,41 @@ TEST(DnsTools, SvcbResolver)
             << dns_value << " cannot be resolved as _dns.resolver.arpa (values: " << nstl::range_print(dns_values, ", ")
             << ')';
         NSTL_INFO("DNS found: " << nstl::range_print(dns_values, "; "));
+    }
+}
+
+namespace
+{
+void print_ips(const std::vector<nstl::net::ip_addr_gen>& ips_, std::ostringstream& oss_)
+{
+    auto itr = ips_.cbegin();
+    oss_ << '[';
+    nstl::net::to_stream(oss_, *itr);
+    while (++itr != ips_.cend())
+    {
+        oss_ << ", ";
+        nstl::net::to_stream(oss_, *itr);
+    }
+    oss_ << ']';
+}
+} // namespace
+
+TEST(DnsTools, AandAAACheck)
+{
+    const auto ipv6_around = nstl::net::box_have_valid_ipv6();
+    NSTL_INFO("IPv6 on this box: " << (ipv6_around ? "enabled" : "disabled"));
+    const auto target = ipv6_around ? nstl::net::IpClass::IpvAll : nstl::net::IpClass::Ipv4;
+    const auto ip_opt_a = nstl::net::ips_name("naszta.hu", target);
+    const auto ip_opt_b = nstl::net::ips_name_libc("naszta.hu", target);
+    ASSERT_TRUE(ip_opt_a.has_value());
+    ASSERT_TRUE(ip_opt_b.has_value());
+    const std::set<nstl::net::ip_addr_gen> sorted_a{ ip_opt_a->cbegin(), ip_opt_a->cend() };
+    const std::set<nstl::net::ip_addr_gen> sorted_b{ ip_opt_b->cbegin(), ip_opt_b->cend() };
+    if (sorted_a != sorted_b)
+    {
+        std::ostringstream side_a_str, side_b_str;
+        print_ips(ip_opt_a.value(), side_a_str);
+        print_ips(ip_opt_b.value(), side_b_str);
+        ADD_FAILURE() << "A: " << side_a_str.view() << " vs. B: " << side_b_str.view();
     }
 }

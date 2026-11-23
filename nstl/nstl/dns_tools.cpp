@@ -24,7 +24,8 @@ namespace nstl::net
 std::array<char, detail::max_host_size> detail::stack_name(const std::string_view name_)
 {
     NSTL2_THROW_EXCEPTION_IF(name_.empty(), "name_ cannot be nullptr");
-    NSTL2_THROW_EXCEPTION_IF(detail::max_host_size <= name_.size(), "Target stack is small (it should be fine: FQDN is 255 bytes maximum)");
+    NSTL2_THROW_EXCEPTION_IF(detail::max_host_size <= name_.size(),
+                             "Target stack is small (it should be fine: FQDN is 255 bytes maximum)");
     std::array<char, max_host_size> stack_out;
     std::strncpy(stack_out.data(), name_.data(), name_.size());
     stack_out[name_.size()] = '\0';
@@ -87,6 +88,40 @@ std::optional<std::string> canonical_name(const std::string_view name_)
 }
 
 std::optional<std::vector<ip_addr_gen>> ips_name(const std::string_view name_, const IpClass class_)
+{
+    std::optional<std::vector<ip_addr_gen>> retval;
+    if (class_ == IpClass::Ipv4 || class_ == IpClass::IpvAll)
+    {
+        if (const auto addresses = ip_a_name(name_))
+        {
+            retval.emplace();
+            retval->reserve(addresses->size());
+            for (const auto& address : addresses.value())
+            {
+                retval->emplace_back(address);
+            }
+        }
+    }
+    if (class_ == IpClass::Ipv6 || class_ == IpClass::IpvAll)
+    {
+        if (const auto addresses = ip_aaaa_name(name_))
+        {
+            if (!retval.has_value())
+            {
+                retval.emplace();
+            }
+            retval->reserve(retval->size() + addresses->size());
+            for (const auto& address : addresses.value())
+            {
+                retval->emplace_back(address);
+            }
+        }
+    }
+
+    return retval;
+}
+
+std::optional<std::vector<ip_addr_gen>> ips_name_libc(const std::string_view name_, const IpClass class_)
 {
     const auto name = detail::stack_name(name_);
     struct addrinfo hints;

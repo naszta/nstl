@@ -1,7 +1,12 @@
 #include "dns_tools.hpp"
 #include "exception.hpp"
 
+#define WIN32_LEAN_AND_MEAN
+
 #include <Windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <iphlpapi.h>
 #include <windns.h>
 
 #include <stdexcept>
@@ -16,6 +21,35 @@ struct DnsRecordDeleter
     void operator()(DNS_RECORD* ptr) const { ::DnsFree(ptr, DnsFreeRecordList); }
 };
 using DnsRecordPtr = std::unique_ptr<DNS_RECORD, DnsRecordDeleter>;
+
+std::string to_utf8(const std::wstring_view view_)
+{
+    const auto size =
+        ::WideCharToMultiByte(CP_UTF8, 0, view_.data(), static_cast<int>(view_.size()), nullptr, 0, nullptr, nullptr);
+    if (size < 1)
+    {
+        return std::string{};
+    }
+    std::string retval(static_cast<size_t>(size), '\0');
+    NSTL2_THROW_EXCEPTION_IF(::WideCharToMultiByte(CP_UTF8, 0, view_.data(), static_cast<int>(view_.size()),
+                                                   retval.data(), size, nullptr, nullptr) <= 0,
+        "wstring_view failed to convert to string");
+    return retval;
+}
+
+std::wstring to_wide(const std::string_view view_)
+{
+    const auto size = ::MultiByteToWideChar(CP_UTF8, 0, view_.data(), static_cast<int>(view_.size()), nullptr, 0);
+    if (size < 1)
+    {
+        return std::wstring{};
+    }
+    std::wstring retval(static_cast<size_t>(size), L'\0');
+    NSTL2_THROW_EXCEPTION_IF(
+        ::MultiByteToWideChar(CP_UTF8, 0, view_.data(), static_cast<int>(view_.size()), retval.data(), size) <= 0,
+        "string_view failed to convert to wstring");
+    return retval;
+}
 
 DnsRecordPtr get_results_ex(const wchar_t* name_, WORD type_)
 {
@@ -42,15 +76,8 @@ DnsRecordPtr get_results_ex(const wchar_t* name_, WORD type_)
 DnsRecordPtr get_results_ex(const std::string_view name_, WORD type_)
 {
     NSTL2_THROW_EXCEPTION_IF(name_.empty(), "empty / nullptr cannot be resolved");
-    const auto size = ::MultiByteToWideChar(CP_UTF8, 0, name_.data(), static_cast<int>(name_.size()), NULL, 0);
-    NSTL2_THROW_EXCEPTION_IF(size <= 0, name_ << " cannot be converted to wchar_t");
-    std::vector<wchar_t> buffer;
-    buffer.resize(size + 1);
-    const auto written =
-        ::MultiByteToWideChar(CP_UTF8, 0, name_.data(), static_cast<int>(name_.size()), buffer.data(), size);
-    NSTL2_THROW_EXCEPTION_IF(written <= 0, name_ << " cannot be converted to wchar_t");
-    buffer[written] = L'\0';
-    return get_results_ex(buffer.data(), type_);
+    const auto wide_name = to_wide(name_);
+    return get_results_ex(wide_name.c_str(), type_);
 }
 
 DnsRecordPtr get_results(const std::string_view name_, WORD type_)
@@ -67,6 +94,54 @@ DnsRecordPtr get_results(const std::string_view name_, WORD type_)
 }
 
 } // namespace
+
+std::optional<std::vector<ipv4_addr>> ip_a_name(const std::string_view name_)
+{
+    const auto results = get_results(name_, DNS_TYPE_A);
+
+    std::optional<std::vector<ipv4_addr>> retval;
+
+    for (auto ptr = results.get(); ptr; ptr = ptr->pNext)
+    {
+        if (ptr->wType != DNS_TYPE_A)
+        {
+            continue;
+        }
+        const auto& item = ptr->Data.A;
+        if (!retval.has_value())
+        {
+            retval.emplace();
+        }
+        auto& tgt = retval->emplace_back();
+        std::memcpy(tgt.data(), &item.IpAddress, tgt.size());
+    }
+
+    return retval;
+}
+
+std::optional<std::vector<ipv6_addr>> ip_aaaa_name(const std::string_view name_)
+{
+    const auto results = get_results(name_, DNS_TYPE_AAAA);
+
+    std::optional<std::vector<ipv6_addr>> retval;
+
+    for (auto ptr = results.get(); ptr; ptr = ptr->pNext)
+    {
+        if (ptr->wType != DNS_TYPE_AAAA)
+        {
+            continue;
+        }
+        const auto& item = ptr->Data.AAAA;
+        if (!retval.has_value())
+        {
+            retval.emplace();
+        }
+        auto& tgt = retval->emplace_back();
+        std::memcpy(tgt.data(), &item.Ip6Address.IP6Byte[0], tgt.size());
+    }
+
+    return retval;
+}
 
 std::optional<std::vector<mx_srv>> mx_name(const std::string_view name_)
 {
@@ -315,5 +390,91 @@ std::optional<std::vector<gen_svcb>> svcb_name(const std::string_view name_, con
     }
 
     return retval;
+}
+
+namespace
+{
+enum class Ipv6Classes
+{
+    Loopback,
+    LinkLocal,
+    ULA,
+    Teredo,
+    Global,
+    Other,
+};
+
+Ipv6Classes classify(const in6_addr& a)
+{
+    static constexpr ipv6_addr loopback{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
+    const unsigned char* b = a.s6_addr;
+    if (std::memcmp(b, loopback.data(), loopback.size()) == 0)
+    {
+        return Ipv6Classes::Loopback;
+    }
+    if (b[0] == 0xfe && (b[1] & 0xc0) == 0x80)
+    {
+        return Ipv6Classes::LinkLocal;
+    }
+    if ((b[0] & 0xfe) == 0xfc)
+    {
+        return Ipv6Classes::ULA;
+    }
+    if (b[0] == 0x20 && b[1] == 0x01 && b[2] == 0 && b[3] == 0)
+    {
+        return Ipv6Classes::Teredo;
+    }
+    if ((b[0] & 0xe0) == 0x20)
+    {
+        return Ipv6Classes::Global;
+    }
+    return Ipv6Classes::Other;
+}
+}
+
+bool box_have_valid_ipv6()
+{
+    ULONG buff_size = 32768;
+
+    std::vector<std::uint8_t> buffer;
+    ULONG rc = ERROR_BUFFER_OVERFLOW;
+    for (int tries = 0; rc == ERROR_BUFFER_OVERFLOW && tries < 3; ++tries)
+    {
+        buffer.resize(buff_size);
+        rc = GetAdaptersAddresses(AF_INET6, GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER,
+                                  nullptr, reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data()), &buff_size);
+
+    }
+    if (rc == ERROR_NO_DATA)
+    {
+        return false;
+    }
+    NSTL2_THROW_EXCEPTION_IF(rc != NO_ERROR, "IPv6 interfaces cannot be resolved");
+
+    for (auto* ad = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data()); ad; ad = ad->Next)
+    {
+        if (ad->OperStatus != IfOperStatusUp)
+        {
+            continue;
+        }
+
+        for (auto* ua = ad->FirstUnicastAddress; ua; ua = ua->Next)
+        {
+            const sockaddr* sa = ua->Address.lpSockaddr;
+            if (!sa || sa->sa_family != AF_INET6)
+            {
+                continue;
+            }
+
+            const auto* sin6 = reinterpret_cast<const sockaddr_in6*>(sa);
+            const auto kind = classify(sin6->sin6_addr);
+            if (kind == Ipv6Classes::Global)
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 } // namespace nstl::net

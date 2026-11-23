@@ -15,6 +15,7 @@
 #include <array>
 #include <functional>
 #include <cstring>
+#include <map>
 #include <utility>
 #include <vector>
 
@@ -260,28 +261,43 @@ public:
     observer_ptr<struct __res_state> get() { return make_observer(&_state); }
 };
 
-std::pair<observer_ptr<struct __res_state>, std::unique_ptr<state_manager>>
-resolve_state_ctx(state_manager& state_, observer_ptr<const dns_config> cfg_)
-{
-    if (cfg_ && !cfg_->dns_servers.empty())
-    {
-        auto ret_state = std::make_unique<state_manager>();
-        ret_state->set_servers(cfg_->dns_servers);
-        return std::make_pair(ret_state->get(), std::move(ret_state));
-    }
-    return std::make_pair(state_.get(), nullptr);
-}
-
 class DnsClient
 {
     static constexpr size_t buff_size = 4096;
+    using server_key = std::vector<ip_addr_gen>;
+
     std::vector<unsigned char> _response;
     state_manager _state;
+    // Resolver states for custom DNS servers, kept until the owning thread exits.
+    // std::map nodes are stable, so the embedded __res_state never relocates.
+    std::map<server_key, state_manager> _custom_states;
+
+    observer_ptr<struct __res_state> _state_for(observer_ptr<const dns_config> cfg_)
+    {
+        if (!cfg_ || cfg_->dns_servers.empty())
+        {
+            return _state.get();
+        }
+
+        const auto& servers = cfg_->dns_servers;
+        const auto num_of_dns = std::min<size_t>(MAXNS, servers.size());
+        server_key key{ servers.cbegin(), servers.cbegin() + static_cast<std::ptrdiff_t>(num_of_dns) };
+
+        auto [it, inserted] = _custom_states.try_emplace(std::move(key));
+        if (inserted)
+        {
+            // never keep a half-configured state in the cache
+            scope_exit rollback{ [this, it] { _custom_states.erase(it); } };
+            it->second.set_servers(it->first);
+            rollback.reset();
+        }
+        return it->second.get();
+    }
 
     bool _process_item(const char* name_, const int ns_type_, observer_ptr<const dns_config> cfg_,
                        const std::function<void(ns_msg& message, int count)>& func_)
     {
-        const auto [ptr, ctx] = resolve_state_ctx(_state, cfg_);
+        const auto ptr = _state_for(cfg_);
 
         int length = -1;
         while (length < 0)
